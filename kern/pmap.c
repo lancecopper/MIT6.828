@@ -104,10 +104,9 @@ boot_alloc(uint32_t n)
 	// LAB 2: Your code here.
 	result = nextfree;
 	nextfree = ROUNDUP(nextfree + n, PGSIZE);
-	if((uint32_t)nextfree - KERNBASE > (npages*PGSIZE))
+	if((uint32_t)nextfree - KERNBASE > (npages * PGSIZE))
 		panic("Out of memory.");
 	return result;
-	return NULL;
 }
 
 // Set up a two-level page table:
@@ -129,7 +128,7 @@ mem_init(void)
 	i386_detect_memory();
 
 	// Remove this line when you're ready to test this function.
-	panic("mem_init: This function is not finished\n");
+	// panic("mem_init: This function is not finished\n");
 
 	//////////////////////////////////////////////////////////////////////
 	// create initial page directory.
@@ -257,19 +256,23 @@ page_init(void)
 	// NB: DO NOT actually touch the physical memory corresponding to
 	// free pages!
 	size_t i;
+	page_free_list =  NULL;
+
 	// num_alloc：在extmem区域已经被占用的页的个数
 	int num_alloc = ((uint32_t)boot_alloc(0) - KERNBASE) / PGSIZE;
 	// num_iohole：在io hole区域占用的页数
 	int num_iohole = (EXTPHYSMEM - IOPHYSMEM) / PGSIZE;
+	assert(num_iohole == 96);
 	for (i = 0; i < npages; i++) {
 		if(i == 0){
 			pages[i].pp_ref = 1;
 		} else if(i >= npages_basemem && i < npages_basemem + num_iohole + num_alloc){
 			pages[i].pp_ref = 1;
+		} else{
+			pages[i].pp_ref = 0;
+			pages[i].pp_link = page_free_list;
+			page_free_list = &pages[i];
 		}
-		pages[i].pp_ref = 0;
-		pages[i].pp_link = page_free_list;
-		page_free_list = &pages[i];
 	}
 }
 
