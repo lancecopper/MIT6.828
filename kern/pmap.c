@@ -124,6 +124,12 @@ mem_init(void)
 	uint32_t cr0;
 	size_t n;
 
+	// /*enable 4MB page
+	uint32_t cr4 = rcr4();
+	rcr4 |= CR4_PSE;
+	lcr4(cr4);
+	// enable 4MB page*/
+
 	// Find out how much memory the machine has (npages & npages_basemem).
 	i386_detect_memory();
 
@@ -202,7 +208,12 @@ mem_init(void)
 	// size: 2^32 - KERNBASE - PGSIZE(Factually, without -PGSIZE, it crashes,
  	// and I do not quite understand why. In my opinion, there shouldn't be
 	// a -PGSIZE.)
-	boot_map_region(kern_pgdir, KERNBASE, /*(1 << 32)*/ - KERNBASE, 0, PTE_W);
+	// boot_map_region(kern_pgdir, KERNBASE, /*(1 << 32)*/ - KERNBASE, 0, PTE_W);
+
+	// /*enable 4MB page
+	boot_map_region(kern_pgdir, KERNBASE,/*(1 << 32)*/ - KERNBASE, 0, PTE_W | PTE_PS);
+	// enable 4MB page*/
+
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -402,12 +413,21 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 	uintptr_t last;
 	pte_t *pte;
 	last = va + size;
-	for(;va != last;){
-		if((pte = pgdir_walk(pgdir, (void *)va, 1)) == NULL)
-			panic("pgdir_walk failed!");
-		*pte = pa | perm | PTE_P;
-		va += PGSIZE;
-		pa += PGSIZE;
+	if(perm & PTE_PS){
+		for(;va != last;){
+			pte = &pgdir[PDX(va)];
+			*pte = pa | perm | PTE_P;
+			va += PGSIZE;
+			pa += PGSIZE;
+		}
+	}else{
+		for(;va != last;){
+			if((pte = pgdir_walk(pgdir, (void *)va, 1)) == NULL)
+				panic("pgdir_walk failed!");
+			*pte = pa | perm | PTE_P;
+			va += PGSIZE;
+			pa += PGSIZE;
+		}
 	}
 }
 
@@ -727,6 +747,8 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 	pgdir = &pgdir[PDX(va)];
 	if (!(*pgdir & PTE_P))
 		return ~0;
+	if(*pgdir & PTE_PS)
+		return (*pgdir) & ~0x3fffff;
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
 	if (!(p[PTX(va)] & PTE_P))
 		return ~0;
