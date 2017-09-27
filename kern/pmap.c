@@ -126,7 +126,7 @@ mem_init(void)
 
 	// /*enable 4MB page
 	uint32_t cr4 = rcr4();
-	rcr4 |= CR4_PSE;
+	cr4 |= CR4_PSE;
 	lcr4(cr4);
 	// enable 4MB page*/
 
@@ -210,13 +210,15 @@ mem_init(void)
 	// a -PGSIZE.)
 	// boot_map_region(kern_pgdir, KERNBASE, /*(1 << 32)*/ - KERNBASE, 0, PTE_W);
 
+	cprintf("check_point1\n");
 	// /*enable 4MB page
 	boot_map_region(kern_pgdir, KERNBASE,/*(1 << 32)*/ - KERNBASE, 0, PTE_W | PTE_PS);
 	// enable 4MB page*/
 
+	cprintf("check_point2\n");
 
 	// Check that the initial page directory has been set up correctly.
-	check_kern_pgdir();
+	// check_kern_pgdir();
 
 	// Switch from the minimal entry page directory to the full kern_pgdir
 	// page table we just created.	Our instruction pointer should be
@@ -226,6 +228,7 @@ mem_init(void)
 	// If the machine reboots at this point, you've probably set up your
 	// kern_pgdir wrong.
 	lcr3(PADDR(kern_pgdir));
+	cprintf("check_point3\n");
 
 	check_page_free_list(0);
 
@@ -413,12 +416,13 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 	uintptr_t last;
 	pte_t *pte;
 	last = va + size;
+
 	if(perm & PTE_PS){
 		for(;va != last;){
 			pte = &pgdir[PDX(va)];
 			*pte = pa | perm | PTE_P;
-			va += PGSIZE;
-			pa += PGSIZE;
+			va += PTSIZE;
+			pa += PTSIZE;
 		}
 	}else{
 		for(;va != last;){
@@ -703,9 +707,6 @@ check_kern_pgdir(void)
 
 	// check phys mem
 	for (i = 0; i < npages * PGSIZE; i += PGSIZE){
-		if(check_va2pa(pgdir, KERNBASE + i) != i){
-			cprintf("check_va2pa=%d, i=%d\n", check_va2pa(pgdir, KERNBASE + i), i);
-		}
 		assert(check_va2pa(pgdir, KERNBASE + i) == i);
 	}
 	// check kernel stack
@@ -747,8 +748,10 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
 	pgdir = &pgdir[PDX(va)];
 	if (!(*pgdir & PTE_P))
 		return ~0;
-	if(*pgdir & PTE_PS)
+	///* enable 4MB page
+	if((*pgdir & PTE_PS) && (rcr4() & CR4_PSE))
 		return (*pgdir) & ~0x3fffff;
+	//enable 4MB page */
 	p = (pte_t*) KADDR(PTE_ADDR(*pgdir));
 	if (!(p[PTX(va)] & PTE_P))
 		return ~0;
