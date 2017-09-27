@@ -358,7 +358,24 @@ pte_t *
 pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
 	// Fill this function in
-	return NULL;
+	pde_t *pde;
+  pte_t *pgtab;
+	struct PageInfo *pageinfo;
+
+  pde = &pgdir[PDX(va)];
+  if(*pde & PTE_P){
+    pgtab = (pte_t*)KADDR(PTE_ADDR(*pde));
+  } else {
+    if(!create || (pageinfo = page_alloc(ALLOC_ZERO)) == NULL)
+      return NULL;
+		(pageinfo->pp_ref)++;
+		pgtab = (pte_t*)page2kva(pageinfo);
+    // The permissions here are overly generous, but they can
+    // be further restricted by the permissions in the page table
+    // entries, if necessary.
+    *pde = PADDR(pgtab) | PTE_P | PTE_W | PTE_U;
+  }
+  return &pgtab[PTX(va)];
 }
 
 //
@@ -376,7 +393,22 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
 	// Fill this function in
+	uintptr_t last;
+	pte_t *pte;
+	last = va + size;
+	for(;;){
+		if((pte = pgdir_walk(pgdir, (void *)va, 1)) == NULL)
+			panic("pgdir_walk failed!");
+		if(*pte & PTE_P)
+			panic("remap");
+		*pte = pa | perm | PTE_P;
+		if(va == last)
+			break;
+		va += PGSIZE;
+		pa += PGSIZE;
+	}
 }
+
 
 //
 // Map the physical page 'pp' at virtual address 'va'.
@@ -407,6 +439,12 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+	pte_t *pte;
+	if((pte = pgdir_walk(pgdir, va, 1)) == NULL)
+		return -E_NO_MEM;
+	(pp->pp_ref)++;
+	page_remove(pgdir, va);
+	*pte = page2pa(pp) | perm | PTE_P;
 	return 0;
 }
 
@@ -425,7 +463,14 @@ struct PageInfo *
 page_lookup(pde_t *pgdir, void *va, pte_t **pte_store)
 {
 	// Fill this function in
-	return NULL;
+	pte_t *pte;
+	struct PageInfo *pageinfo;
+	if((pte = pgdir_walk(pgdir, va, 0)) == NULL || !(*pte & PTE_P))
+		return NULL;
+	pageinfo = pa2page(PTE_ADDR(*pte) + PGOFF(va));
+	if(pte_store)
+		*pte_store = pte;
+	return pageinfo;
 }
 
 //
@@ -447,6 +492,13 @@ void
 page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
+	struct PageInfo *pageinfo;
+	pte_t *pte;
+	if((pageinfo = page_lookup(pgdir, va, &pte)) == NULL)
+		return;
+	page_decref(pageinfo);
+	*pte = 0;
+	tlb_invalidate(pgdir, va);
 }
 
 //
