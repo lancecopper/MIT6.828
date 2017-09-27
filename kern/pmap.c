@@ -176,6 +176,7 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
 
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
@@ -188,6 +189,7 @@ mem_init(void)
 	//       overwrite memory.  Known as a "guard page".
 	//     Permissions: kernel RW, user NONE
 	// Your code goes here:
+	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -197,6 +199,10 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
+	// size: 2^32 - KERNBASE - PGSIZE(Factually, without -PGSIZE, it crashes,
+ 	// and I do not quite understand why. In my opinion, there shouldn't be
+	// a -PGSIZE.)
+	boot_map_region(kern_pgdir, KERNBASE, /*(1 << 32)*/ - KERNBASE, 0, PTE_W);
 
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
@@ -396,18 +402,15 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
 	uintptr_t last;
 	pte_t *pte;
 	last = va + size;
-	for(;;){
+	for(;va != last;){
 		if((pte = pgdir_walk(pgdir, (void *)va, 1)) == NULL)
 			panic("pgdir_walk failed!");
-		if(*pte & PTE_P)
-			panic("remap");
 		*pte = pa | perm | PTE_P;
-		if(va == last)
-			break;
 		va += PGSIZE;
 		pa += PGSIZE;
 	}
 }
+
 
 
 //
@@ -678,11 +681,13 @@ check_kern_pgdir(void)
 	for (i = 0; i < n; i += PGSIZE)
 		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
 
-
 	// check phys mem
-	for (i = 0; i < npages * PGSIZE; i += PGSIZE)
+	for (i = 0; i < npages * PGSIZE; i += PGSIZE){
+		if(check_va2pa(pgdir, KERNBASE + i) != i){
+			cprintf("check_va2pa=%d, i=%d\n", check_va2pa(pgdir, KERNBASE + i), i);
+		}
 		assert(check_va2pa(pgdir, KERNBASE + i) == i);
-
+	}
 	// check kernel stack
 	for (i = 0; i < KSTKSIZE; i += PGSIZE)
 		assert(check_va2pa(pgdir, KSTACKTOP - KSTKSIZE + i) == PADDR(bootstack) + i);
@@ -700,8 +705,9 @@ check_kern_pgdir(void)
 			if (i >= PDX(KERNBASE)) {
 				assert(pgdir[i] & PTE_P);
 				assert(pgdir[i] & PTE_W);
-			} else
+			} else{
 				assert(pgdir[i] == 0);
+			}
 			break;
 		}
 	}
