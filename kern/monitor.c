@@ -24,7 +24,9 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
-	{ "backtrace", "Display a listing of function call frames", mon_backtrace }
+	{ "backtrace", "Display a listing of function call frames", mon_backtrace },
+	{	"showmappings", "Display physical page mappings and permission bits", mon_showmappings },
+
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -89,7 +91,25 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+int mon_showmappings(int argc, char **argv, struct Trapframe *tf)
+{
+	extern pte_t * pgdir_walk(pde_t *pgdir, const void *va, int create);
+	extern pte_t * kern_pgdir;
+	uintptr_t va, begin_addr, end_addr;
+	physaddr_t phaddr;
+	pte_t　*pte;
 
+	if(argc != 3){
+		cprintf("Usage: showmappings begin_addr end_addr\n");
+	}
+	begin_addr = strtol(argv[1], NULL, 16);
+	end_addr = strtol(argv[2], NULL, 16);
+	for(va = begin_addr; va < end_addr; va += PGSIZE){
+		pte = pgdir_walk(kern_pgdir, va, 0);
+		phaddr = (physaddr_t) (pte) & ~0xFFF;
+		printf("%x\n", );
+	}
+}
 
 /***** Kernel monitor command interpreter *****/
 
