@@ -25,7 +25,7 @@ static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "backtrace", "Display a listing of function call frames", mon_backtrace },
-	{	"showmappings", "Display physical page mappings and permission bits", mon_showmappings },
+	{	"showmp", "Display physical page mappings and permission bits", mon_showmp },
 
 };
 
@@ -91,24 +91,40 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
-int mon_showmappings(int argc, char **argv, struct Trapframe *tf)
+int
+mon_showmp(int argc, char **argv, struct Trapframe *tf)
 {
-	extern pte_t * pgdir_walk(pde_t *pgdir, const void *va, int create);
-	extern pte_t * kern_pgdir;
-	uintptr_t va, begin_addr, end_addr;
+	extern pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
+	extern pte_t *kern_pgdir;
+	uintptr_t va, begin, end;
 	physaddr_t phaddr;
-	pte_t　*pte;
+	pte_t *pte;
 
 	if(argc != 3){
-		cprintf("Usage: showmappings begin_addr end_addr\n");
+	  cprintf("Usage: showmappings begin end\n");
+		return 0;
 	}
-	begin_addr = strtol(argv[1], NULL, 16);
-	end_addr = strtol(argv[2], NULL, 16);
-	for(va = begin_addr; va < end_addr; va += PGSIZE){
-		pte = pgdir_walk(kern_pgdir, va, 0);
-		phaddr = (physaddr_t) (pte) & ~0xFFF;
-		printf("%x\n", );
+	begin = ROUNDDOWN(strtol(argv[1], NULL, 16), PGSIZE);
+	end = ROUNDUP(strtol(argv[2], NULL, 16), PGSIZE);
+	if (end > 0xffffffff) {
+	    cprintf("end overflow\n");
+	    return 0;
 	}
+	// cprintf("begin: %x, end: %x\n", begin, end);
+	for(va = begin; va <= end; va += PGSIZE){
+	  cprintf("va: 0x%x, ", va);
+	  pte = pgdir_walk(kern_pgdir, (void *)va, 0);
+	  if(!pte){
+	    cprintf("unmapped\n");
+	  }else{
+	    phaddr = (physaddr_t) (*pte) & ~0xFFF;
+	    cprintf("pa: 0x%x, ", phaddr);
+	    cprintf("PTE_P: %x, PTE_W: %x, PTE_U: %x\n", (*pte) & PTE_P, (*pte) & PTE_W && 1, (*pte) & PTE_U) && 1;
+	  }
+		if(va == 0xfffff000)
+			break;
+	}
+	return 0;
 }
 
 /***** Kernel monitor command interpreter *****/
