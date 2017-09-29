@@ -11,8 +11,14 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 
+#include <kern/pmap.h>
+
 #define CMDBUF_SIZE	80	// enough for one VGA text line
 
+extern pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
+extern pte_t *kern_pgdir;
+extern size_t npages;
+extern struct PageInfo *pages;
 
 struct Command {
 	const char *name;
@@ -26,6 +32,10 @@ static struct Command commands[] = {
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "backtrace", "Display a listing of function call frames", mon_backtrace },
 	{	"showmp", "Display physical page mappings and permission bits", mon_showmp },
+	{ "changeperm", "Change permission bits", mon_changeperm},
+	{	"dump",
+		"dump Dump the contents of a range of memory given either a virtual or physical address range",
+		mon_dump},
 
 };
 
@@ -94,8 +104,6 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 int
 mon_showmp(int argc, char **argv, struct Trapframe *tf)
 {
-	extern pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
-	extern pte_t *kern_pgdir;
 	uintptr_t va, begin, end;
 	physaddr_t phaddr;
 	pte_t *pte;
@@ -112,20 +120,186 @@ mon_showmp(int argc, char **argv, struct Trapframe *tf)
 	}
 	// cprintf("begin: %x, end: %x\n", begin, end);
 	for(va = begin; va <= end; va += PGSIZE){
-	  cprintf("va: 0x%x, ", va);
+	  cprintf("va: %08x, ", va);
 	  pte = pgdir_walk(kern_pgdir, (void *)va, 0);
 	  if(!pte){
 	    cprintf("unmapped\n");
 	  }else{
 	    phaddr = (physaddr_t) (*pte) & ~0xFFF;
-	    cprintf("pa: 0x%x, ", phaddr);
-	    cprintf("PTE_P: %x, PTE_W: %x, PTE_U: %x\n", (*pte) & PTE_P, (*pte) & PTE_W && 1, (*pte) & PTE_U) && 1;
+	    cprintf("pa: %08x, ", phaddr);
+	    cprintf("PTE_P: %x, PTE_W: %x, PTE_U: %x\n", (*pte) & PTE_P, (*pte) & PTE_W && 1, (*pte) & PTE_U && 1);
 	  }
 		if(va == 0xfffff000)
 			break;
 	}
 	return 0;
 }
+
+int mon_changeperm(int argc, char **argv, struct Trapframe *tf)
+{
+	uintptr_t va;
+	pte_t *	pte;
+	int opflag;
+	char *pnt;
+	int perm = 0;
+
+	if(argc != 4){
+		cprintf("Usage: changeperm va op flags\n");
+		return 0;
+	}
+	va = ROUNDDOWN(strtol(argv[1], NULL, 16), PGSIZE);
+	pte = pgdir_walk(kern_pgdir, (void *)va, 0);
+	if(!pte){
+		cprintf("unmapped\n");
+		return 0;
+	}
+	if(!strcmp(argv[2], "set"))
+		opflag = 0;
+	else if(!strcmp(argv[2], "clear"))
+		opflag = 1;
+	else{
+		cprintf("unrecoginized op, permitted op: 'set', 'clear'\n");
+		return 0;
+	}
+	switch(opflag){
+		case 0:{
+			perm = 0;
+			for(pnt = argv[3]; *pnt != '\0'; pnt++){
+				switch (*pnt){
+					case 'p':
+					case 'P':{
+						perm |= PTE_P;
+						break;
+					}
+					case 'w':
+					case 'W':{
+						perm |= PTE_W;
+						break;
+					}
+					case 'u':
+					case 'U':{
+						perm |= PTE_U;
+						break;
+					}
+					default:{
+						cprintf("unrecoginized perm_bit, permitted perm_bit: 'P', 'W', 'U'\n");
+					}
+				}
+			}
+			*pte |= perm;
+			break;
+		}
+		case 1:{
+			perm = ~0;
+			for(pnt = argv[3]; *pnt != '\0'; pnt++)
+				switch (*pnt){
+					case 'p':
+					case 'P':{
+						perm &= ~PTE_P;
+						break;
+					}
+					case 'w':
+					case 'W':{
+						perm &= ~PTE_W;
+						break;
+					}
+					case 'u':
+					case 'U':{
+						perm &= ~PTE_U;
+						break;
+					}
+					default:{
+						cprintf("unrecoginized perm_bit, permitted perm_bit: 'P', 'W', 'U'\n");
+					}
+				}
+			*pte &= perm;
+			break;
+		}
+		default:{
+			cprintf("unexpected error: illegal opflag!\n");
+			return 0;
+		}
+	}
+	return 0;
+}
+
+int mon_dump(int argc, char **argv, struct Trapframe *tf)
+{
+	uintptr_t va, vbegin, vend;
+	physaddr_t pa, pbegin, pend;
+	int addrflag, out_calc;
+	pte_t *pte = NULL;
+	char *pagebase = NULL;
+
+	if(argc != 4){
+		cprintf("Usage: mon_dump va/pa begin end\n");
+		return 0;
+	}
+	if(!strcmp(argv[1], "va")){
+		addrflag = 0;
+	}else if(!strcmp(argv[1], "pa")){
+		addrflag = 1;
+	}else{
+		cprintf("unrecoginized addrflag, permitted addrflag: 'va', 'pa'\n");
+		return 0;
+	}
+	switch ((addrflag)) {
+		case 0:{
+			vbegin = strtol(argv[2], NULL, 16);
+			vend = strtol(argv[3], NULL, 16);
+			if (vend > 0xffffffff) {
+			    cprintf("end overflow\n");
+			    return 0;
+			}
+			out_calc = 0;
+			for(va=vbegin; va<=vend;){
+				if(!pte || ROUNDDOWN(va, PGSIZE) == va){
+					cprintf("\n\n%08x~%08x:\n", va, ROUNDDOWN(va, PGSIZE) + PGSIZE);
+					pte = pgdir_walk(kern_pgdir, (void *)va, 0);
+				}
+				if(!pte){
+					cprintf("unmapped...\n");
+					va = ROUNDDOWN(va, PGSIZE) + PGSIZE;
+					out_calc = 0;
+				}else{
+					if(!out_calc)
+						cprintf("\n%08x:  ", va);
+					cprintf("%08x,	", *((char *)va));
+					va += 1;
+				}
+				out_calc = (out_calc + 1) % 8;
+			}
+			cprintf("\n");
+			break;
+		}
+		case 1:{
+			pbegin = strtol(argv[2], NULL, 16);
+			pend = strtol(argv[3], NULL, 16);
+			if (pend >= npages * PGSIZE) {
+			    cprintf("end overflow\n");
+			    return 0;
+			}
+			out_calc = 0;
+			for(pa = pbegin; pa <= pend; pa++){
+				if(!pagebase || ROUNDDOWN(pa, PGSIZE) == pa){
+					cprintf("\n\n%08x~%08x:\n", pa, ROUNDDOWN(pa, PGSIZE) + PGSIZE);
+				 	pagebase = page2kva(pa2page(pa));
+			 	}
+			 	if(!out_calc)
+			 		cprintf("\n%08x:  ", pa);
+	 			cprintf("%08x,	", *(pagebase + (pa && 0xfff)));
+			 	out_calc = (out_calc + 1) % 8;
+			}
+			cprintf("\n");
+			break;
+		}
+		default:
+			cprintf("unexpected error: illegal addrflag!\n");
+			return 0;
+	}
+	return 0;
+}
+
 
 /***** Kernel monitor command interpreter *****/
 
