@@ -229,10 +229,9 @@ int mon_dump(int argc, char **argv, struct Trapframe *tf)
 	physaddr_t pa, pbegin, pend;
 	int addrflag, out_calc;
 	pte_t *pte = NULL;
-	char *pagebase = NULL;
 
 	if(argc != 4){
-		cprintf("Usage: mon_dump va/pa begin end\n");
+		cprintf("Usage: dump va/pa begin end\n");
 		return 0;
 	}
 	if(!strcmp(argv[1], "va")){
@@ -252,22 +251,21 @@ int mon_dump(int argc, char **argv, struct Trapframe *tf)
 			    return 0;
 			}
 			out_calc = 0;
-			for(va=vbegin; va<=vend;){
+			for(va=ROUNDDOWN(vbegin, 4); va<=ROUNDUP(vend, 4);){
 				if(!pte || ROUNDDOWN(va, PGSIZE) == va){
-					cprintf("\n\n%08x~%08x:\n", va, ROUNDDOWN(va, PGSIZE) + PGSIZE);
 					pte = pgdir_walk(kern_pgdir, (void *)va, 0);
 				}
 				if(!pte){
-					cprintf("unmapped...\n");
+					cprintf("\n\n0x%08x~0x%08x: unmapped\n", va, ROUNDDOWN(va, PGSIZE) + PGSIZE);
 					va = ROUNDDOWN(va, PGSIZE) + PGSIZE;
 					out_calc = 0;
 				}else{
 					if(!out_calc)
-						cprintf("\n%08x:  ", va);
-					cprintf("%08x,	", *((char *)va));
-					va += 1;
+						cprintf("\n0x%08x:  ", va);
+					cprintf("0x%08x,	", *((uint32_t *)va));
+					va += 4;
 				}
-				out_calc = (out_calc + 1) % 8;
+				out_calc = (out_calc + 1) % 4;
 			}
 			cprintf("\n");
 			break;
@@ -280,15 +278,11 @@ int mon_dump(int argc, char **argv, struct Trapframe *tf)
 			    return 0;
 			}
 			out_calc = 0;
-			for(pa = pbegin; pa <= pend; pa++){
-				if(!pagebase || ROUNDDOWN(pa, PGSIZE) == pa){
-					cprintf("\n\n%08x~%08x:\n", pa, ROUNDDOWN(pa, PGSIZE) + PGSIZE);
-				 	pagebase = page2kva(pa2page(pa));
-			 	}
+			for(pa = ROUNDDOWN(pbegin, 4); pa <= ROUNDUP(pend, 4); pa += 4){
 			 	if(!out_calc)
-			 		cprintf("\n%08x:  ", pa);
-	 			cprintf("%08x,	", *(pagebase + (pa && 0xfff)));
-			 	out_calc = (out_calc + 1) % 8;
+			 		cprintf("\n0x%08x:  ", pa);
+	 			cprintf("0x%08x,	", *(uint32_t *)(KADDR(pa)));
+			 	out_calc = (out_calc + 1) % 4;
 			}
 			cprintf("\n");
 			break;
