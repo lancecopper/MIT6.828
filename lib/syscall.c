@@ -29,6 +29,7 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		       "b" (a3),
 		       "D" (a4),
 		       "S" (a5)
+// cc:condition codes (the bits in the flags register the jnz, je, etc. operators look at.)
 		     : "cc", "memory");
 
 	if(check && ret > 0)
@@ -60,4 +61,3 @@ sys_getenvid(void)
 {
 	 return syscall(SYS_getenvid, 0, 0, 0, 0, 0, 0);
 }
-

@@ -24,7 +24,7 @@ static struct Env *env_free_list;	// Free environment list
 // Set up global descriptor table (GDT) with separate segments for
 // kernel mode and user mode.  Segments serve many purposes on the x86.
 // We don't use any of their memory-mapping capabilities, but we need
-// them to switch privilege levels. 
+// them to switch privilege levels.
 //
 // The kernel and user segments are identical except for the DPL.
 // To load the SS register, the CPL must equal the DPL.  Thus,
@@ -116,7 +116,13 @@ env_init(void)
 {
 	// Set up envs array
 	// LAB 3: Your code here.
-
+	for(int i = NENV - 1; i >= 0; i--){
+		envs[i].env_status = ENV_FREE;
+		envs[i].env_id = 0;
+		if(i != NENV - 1)
+			envs[i].env_link = &envs[i + 1];
+	}
+	env_free_list = &envs[0];
 	// Per-CPU part of the initialization
 	env_init_percpu();
 }
@@ -136,6 +142,13 @@ env_init_percpu(void)
 	asm volatile("movw %%ax,%%ds" : : "a" (GD_KD));
 	asm volatile("movw %%ax,%%ss" : : "a" (GD_KD));
 	// Load the kernel text segment into CS.
+	// #######################################
+	// #### fake label in inline assembly ####
+	// #######################################
+	// Only some local labels are legal in inline assembly.
+	// The f suffix for the label means the label behind the branch instruction
+	// and b is for the one ahead
+	// asm volatile ( "ljmp %0, $fake_label \n\t fake_label: \n\t" :: "i"(cs) )
 	asm volatile("ljmp %0,$1f\n 1:\n" : : "i" (GD_KT));
 	// For good measure, clear the local descriptor table (LDT),
 	// since we don't use it.
@@ -179,11 +192,14 @@ env_setup_vm(struct Env *e)
 	//    - The functions in kern/pmap.h are handy.
 
 	// LAB 3: Your code here.
+	e->env_pgdir = (pte_t *)page2kva(p);
+	p->pp_ref++;
+	memmove(e->env_pgdir, kern_pgdir, PGSIZE);
+	// memset(e->env_pgdir, 0, sizeof(pte_t) * PDX(UTOP));
 
 	// UVPT maps the env's own page table read-only.
 	// Permissions: kernel R, user R
 	e->env_pgdir[PDX(UVPT)] = PADDR(e->env_pgdir) | PTE_P | PTE_U;
-
 	return 0;
 }
 
@@ -267,6 +283,18 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
+	/*
+	pte_t *pte;
+	int r;
+	struct PageInfo *pageinfo;
+	void *la = ROUNDUP(va + len, PGSIZE);
+	for(va = ROUNDDOWN(va, PGSIZE); va < la; va += PGSIZE){
+		if(!(pageinfo = page_alloc(0)))
+			panic("region_alloc!");
+		if((r = page_insert(e->env_pgdir, pageinfo, va, PTE_U | PTE_W)) < 0)
+			panic("region_alloc: %e", r);
+	}
+	*/
 }
 
 //
@@ -323,11 +351,37 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
+	/*
+	struct Elf *ELFHDR = (struct Elf *)binary;
+	struct Proghdr *ph, *eph;
+
+	if(ELFHDR->e_magic != ELF_MAGIC)
+		panic("load_icode failed: Invalid ELF!");
+
+	if(ELFHDR->e_entry == 0)
+		panic("load_icode failed: Cannot be executed!");
+
+	// load each program segment (ignores ph flags)
+	lcr3(PADDR(e->env_pgdir));
+	ph = (struct Proghdr *) ((uint8_t *) ELFHDR + ELFHDR->e_phoff);
+	eph = ph + ELFHDR->e_phnum;
+	for (; ph < eph; ph++)
+		// p_pa is the load address of this segment (as well
+		// as the physical address)
+		if(ph->p_type == ELF_PROG_LOAD){
+			//region_alloc(struct Env *e, void *va, size_t len)
+			region_alloc(e, (void *)(ph->p_va), ph->p_memsz);
+			memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+			memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
+		}
+	lcr3(PADDR(kern_pgdir));
+	e->env_tf.tf_eip = ELFHDR->e_entry;
 
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
-
 	// LAB 3: Your code here.
+	region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
+	*/
 }
 
 //
@@ -341,6 +395,13 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
+	/*
+	struct Env *e;
+	if(env_alloc(&e, 0) < 0)
+		panic("env_create failed: failed to alloc env!");
+	load_icode(e, binary);
+	e->env_type = type;
+	*/
 }
 
 //
@@ -457,7 +518,14 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-
+	/*
+	if(curenv)
+		curenv->env_status = ENV_RUNNABLE;
+	curenv = e;
+	curenv->env_status = ENV_RUNNING;
+	curenv->env_runs += 1;
+	lcr3(PADDR(curenv->env_pgdir));
+	env_pop_tf(&curenv->env_tf);
+	*/
 	panic("env_run not yet implemented");
 }
-
