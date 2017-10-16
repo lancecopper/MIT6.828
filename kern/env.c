@@ -194,7 +194,7 @@ env_setup_vm(struct Env *e)
 	// LAB 3: Your code here.
 	e->env_pgdir = (pte_t *)page2kva(p);
 	p->pp_ref++;
-	memmove(e->env_pgdir, kern_pgdir, PGSIZE);
+	memcpy(e->env_pgdir, kern_pgdir, PGSIZE);
 	// memset(e->env_pgdir, 0, sizeof(pte_t) * PDX(UTOP));
 
 	// UVPT maps the env's own page table read-only.
@@ -283,7 +283,6 @@ region_alloc(struct Env *e, void *va, size_t len)
 	//   'va' and 'len' values that are not page-aligned.
 	//   You should round va down, and round (va + len) up.
 	//   (Watch out for corner-cases!)
-	/*
 	pte_t *pte;
 	int r;
 	struct PageInfo *pageinfo;
@@ -294,7 +293,6 @@ region_alloc(struct Env *e, void *va, size_t len)
 		if((r = page_insert(e->env_pgdir, pageinfo, va, PTE_U | PTE_W)) < 0)
 			panic("region_alloc: %e", r);
 	}
-	*/
 }
 
 //
@@ -351,7 +349,6 @@ load_icode(struct Env *e, uint8_t *binary)
 	//  What?  (See env_run() and env_pop_tf() below.)
 
 	// LAB 3: Your code here.
-	/*
 	struct Elf *ELFHDR = (struct Elf *)binary;
 	struct Proghdr *ph, *eph;
 
@@ -381,7 +378,6 @@ load_icode(struct Env *e, uint8_t *binary)
 	// at virtual address USTACKTOP - PGSIZE.
 	// LAB 3: Your code here.
 	region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
-	*/
 }
 
 //
@@ -395,13 +391,11 @@ void
 env_create(uint8_t *binary, enum EnvType type)
 {
 	// LAB 3: Your code here.
-	/*
 	struct Env *e;
 	if(env_alloc(&e, 0) < 0)
 		panic("env_create failed: failed to alloc env!");
 	load_icode(e, binary);
 	e->env_type = type;
-	*/
 }
 
 //
@@ -518,14 +512,12 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
-	/*
-	if(curenv)
+	if(curenv && curenv->env_status == ENV_RUNNING)
 		curenv->env_status = ENV_RUNNABLE;
 	curenv = e;
 	curenv->env_status = ENV_RUNNING;
 	curenv->env_runs += 1;
 	lcr3(PADDR(curenv->env_pgdir));
 	env_pop_tf(&curenv->env_tf);
-	*/
-	panic("env_run not yet implemented");
+	// panic("env_run not yet implemented");
 }

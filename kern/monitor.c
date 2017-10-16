@@ -33,11 +33,14 @@ static struct Command commands[] = {
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
 	{ "backtrace", "Display a listing of function call frames", mon_backtrace },
 	{	"showmp", "Display physical page mappings and permission bits", mon_showmp },
-	{ "changeperm", "Change permission bits", mon_changeperm},
+	{ "changeperm", "Change permission bits", mon_changeperm },
 	{	"dump",
 		"dump Dump the contents of a range of memory given either a virtual or physical address range",
-		mon_dump},
-
+		mon_dump },
+	{"si", "execute in single_step mode", debug_si },
+	{"continue", "execute in executive mode", debug_continue },
+	{"print_tf", "print trapframe", debug_pr_tf },
+	{"exit", "exit from debug mode", debug_exit},
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -48,7 +51,7 @@ mon_help(int argc, char **argv, struct Trapframe *tf)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(commands); i++)
-		cprintf("%s - %s\n", commands[i].name, commands[i].desc);
+		cprintf("<%s> - %s\n", commands[i].name, commands[i].desc);
 	return 0;
 }
 
@@ -79,9 +82,9 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 
 	ebp = read_ebp();
 	eip = *((uint32_t *)ebp + 1);
-	debuginfo_eip(eip, &info);
+	if(debuginfo_eip(eip, &info) < 0)
+		panic("backtrace errors!!!\n");
 	cprintf("Stack backtrace:\n");
-
 	while(ebp){
 	    cprintf(" ebp %08x eip %08x args", ebp, eip);
 	    args = (uint32_t *)ebp + 2;
@@ -97,7 +100,8 @@ mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 	    cprintf("+%u\n", (unsigned)(eip - info.eip_fn_addr));
 	    ebp = ((uint32_t *)ebp)[0];
 	    eip = ((uint32_t *)ebp)[1];
-	    debuginfo_eip(eip, &info);
+			if(debuginfo_eip(eip, &info) < 0)
+				panic("backtrace errors!!!\n");
 	}
 	return 0;
 }
@@ -295,6 +299,55 @@ int mon_dump(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
+/***** Implementations of debugger commands *****/
+
+int debug_si(int argc, char **argv, struct Trapframe *tf){
+	if(argc != 1){
+		cprintf("Usage: si.\n");
+		return 0;
+	}
+	if(!tf){
+		cprintf("si runs only in debug mode!\n");
+		return 0;
+	}
+	tf->tf_eflags |= FL_TF;
+	return -1;
+}
+int debug_continue(int argc, char **argv, struct Trapframe *tf){
+	if(argc != 1){
+		cprintf("Usage: continue.\n");
+		return 0;
+	}
+	if(!tf){
+		cprintf("si runs only in debug mode!\n");
+		return 0;
+	}
+	tf->tf_eflags &= ~FL_TF;
+	return -1;
+}
+int debug_pr_tf(int argc, char **argv, struct Trapframe *tf){
+	if(argc != 1){
+		cprintf("Usage: print_tf.\n");
+		return 0;
+	}
+	if(!tf){
+		cprintf("si runs only in debug mode!\n");
+		return 0;
+	}
+	print_trapframe(tf);
+	return 0;
+}
+int debug_exit(int argc, char **argv, struct Trapframe *tf){
+	if(argc != 1){
+		cprintf("Usage: pr_tf.\n");
+		return 0;
+	}
+	if(!tf){
+		cprintf("si runs only in debug mode!\n");
+		return 0;
+	}
+	return -1;
+}
 
 /***** Kernel monitor command interpreter *****/
 
@@ -302,7 +355,7 @@ int mon_dump(int argc, char **argv, struct Trapframe *tf)
 #define MAXARGS 16
 
 static int
-runcmd(char *buf, struct Trapframe *tf)
+runcmd(char *buf, struct Trapframe *tf, int debug_flag)
 {
 	int argc;
 	char *argv[MAXARGS];
@@ -345,16 +398,24 @@ monitor(struct Trapframe *tf)
 {
 	char *buf;
 
-	cprintf("Welcome to the JOS kernel monitor!\n");
-	cprintf("Type 'help' for a list of commands.\n");
-
-	if (tf != NULL)
-		print_trapframe(tf);
-
-	while (1) {
-		buf = readline("K> ");
-		if (buf != NULL)
-			if (runcmd(buf, tf) < 0)
-				break;
+	if (tf != NULL){
+		//print_trapframe(tf);
+		cprintf("0x%08x\n", tf->tf_eip);
+		while (1) {
+			buf = readline("Debug> ");
+			if (buf != NULL)
+				if (runcmd(buf, tf, 1) < 0)
+					break;
+		}
+	}
+	else {
+		cprintf("Welcome to the JOS kernel monitor!\n");
+		cprintf("Type 'help' for a list of commands.\n");
+		while (1) {
+			buf = readline("K> ");
+			if (buf != NULL)
+				if (runcmd(buf, tf, 0) < 0)
+					break;
+		}
 	}
 }
