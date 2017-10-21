@@ -70,10 +70,18 @@ void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
+	extern long entry_data[][3];
+	int istrap;
 
-	// LAB 3: Your code here.
-
-	// Per-CPU setup 
+	// LAB 3: Your code here
+	for (int i = 0; entry_data[i][0] != 0; i++){
+		if(entry_data[i][1] == T_SYSCALL)
+			istrap = 1;
+		else
+			istrap = 0;
+		SETGATE(idt[entry_data[i][1]], istrap, GD_KT, entry_data[i][0], entry_data[i][2]*3);
+	}
+	// Per-CPU setup
 	trap_init_percpu();
 }
 
@@ -176,27 +184,48 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+	switch ((tf->tf_trapno)) {
+		case T_PGFLT:
+			if((tf->tf_cs & 3) == 0)
+				panic("page fault!");
+			page_fault_handler(tf);
+			break;
+		case T_BRKPT:
+		case T_DEBUG: 											//(auto-produced by single_step):
+			monitor(tf);
+			break;
+		case T_SYSCALL:
+			(tf->tf_regs).reg_eax = syscall((tf->tf_regs).reg_eax, (tf->tf_regs).reg_edx,
+				(tf->tf_regs).reg_ecx, (tf->tf_regs).reg_ebx, (tf->tf_regs).reg_edi, (tf->tf_regs).reg_esi);
+			break;
+			// Handle spurious interrupts
+			// The hardware sometimes raises these because of noise on the
+			// IRQ line or other reasons. We don't care.
+		case IRQ_OFFSET + IRQ_SPURIOUS:
+			cprintf("Spurious interrupt on irq 7\n");
+			print_trapframe(tf);
+			return;
+		// Handle clock interrupts. Don't forget to acknowledge the
+		// interrupt using lapic_eoi() before calling the scheduler!
+		// LAB 4: Your code here.
 
-	// Handle spurious interrupts
-	// The hardware sometimes raises these because of noise on the
-	// IRQ line or other reasons. We don't care.
-	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SPURIOUS) {
-		cprintf("Spurious interrupt on irq 7\n");
+		// Unexpected trap: The user process or the kernel has a bug.
 		print_trapframe(tf);
-		return;
-	}
-
-	// Handle clock interrupts. Don't forget to acknowledge the
-	// interrupt using lapic_eoi() before calling the scheduler!
-	// LAB 4: Your code here.
-
-	// Unexpected trap: The user process or the kernel has a bug.
-	print_trapframe(tf);
-	if (tf->tf_cs == GD_KT)
-		panic("unhandled trap in kernel");
-	else {
-		env_destroy(curenv);
-		return;
+		if (tf->tf_cs == GD_KT)
+			panic("unhandled trap in kernel");
+		else {
+			env_destroy(curenv);
+			return;
+		}
+		default:
+			// Unexpected trap: The user process or the kernel has a bug.
+			print_trapframe(tf);
+			if (tf->tf_cs == GD_KT)
+				panic("unhandled trap in kernel");
+			else {
+				env_destroy(curenv);
+				return;
+			}
 	}
 }
 
@@ -221,6 +250,11 @@ trap(struct Trapframe *tf)
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
 
+<<<<<<< HEAD
+=======
+	// cprintf("Incoming TRAP frame at %p\n", tf);
+
+>>>>>>> lab3
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
 		// Acquire the big kernel lock before doing any
@@ -312,4 +346,3 @@ page_fault_handler(struct Trapframe *tf)
 	print_trapframe(tf);
 	env_destroy(curenv);
 }
-

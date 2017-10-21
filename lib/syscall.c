@@ -29,6 +29,7 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		       "b" (a3),
 		       "D" (a4),
 		       "S" (a5)
+// cc:condition codes (the bits in the flags register the jnz, je, etc. operators look at.)
 		     : "cc", "memory");
 
 	if(check && ret > 0)
@@ -110,4 +111,3 @@ sys_ipc_recv(void *dstva)
 {
 	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
-
