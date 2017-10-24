@@ -29,7 +29,18 @@ sched_yield(void)
 	// below to halt the cpu.
 
 	// LAB 4: Your code here.
-
+	idle = curenv;
+	uint32_t start = idle ? ENVX(idle->env_id) : 0;
+	for(uint32_t i = (start + 1) % NENV; NENV != start; i++){
+		if(i == NENV)
+			i = 0;
+		if(envs[i].env_status == ENV_RUNNABLE){
+			cprintf("sched_yield\n");
+			env_run(&envs[i]);
+		}
+	}
+	if(idle->env_status == ENV_RUNNING)
+		env_run(idle);
 	// sched_halt never returns
 	sched_halt();
 }
@@ -81,4 +92,3 @@ sched_halt(void)
 		"jmp 1b\n"
 	: : "a" (thiscpu->cpu_ts.ts_esp0));
 }
-

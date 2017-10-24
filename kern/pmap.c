@@ -272,7 +272,15 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
+	pte_t * pgdir = kern_pgdir;
+	uintptr_t kstacktop_i;
 
+	for (int i = 0; i < NCPU; i++)
+	{
+		kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+		boot_map_region(pgdir, kstacktop_i - KSTKSIZE, KSTKSIZE,
+										PADDR(&percpu_kstacks[i]), PTE_W);
+	}
 }
 
 // --------------------------------------------------------------
@@ -318,13 +326,17 @@ page_init(void)
 	int num_alloc = ((uint32_t)boot_alloc(0) - KERNBASE) / PGSIZE;
 	// num_iohole：在io hole区域占用的页数
 	int num_iohole = (EXTPHYSMEM - IOPHYSMEM) / PGSIZE;
+	int num_mpentry = MPENTRY_PADDR / PGSIZE;
 	assert(num_iohole == 96);
 	for (i = 0; i < npages; i++) {
 		if(i == 0){
 			pages[i].pp_ref = 1;
 		} else if(i >= npages_basemem && i < npages_basemem + num_iohole + num_alloc){
 			pages[i].pp_ref = 1;
-		} else{
+		} else if(i == num_mpentry){
+			pages[i].pp_ref = 1;
+		}
+		else{
 			pages[i].pp_ref = 0;
 			pages[i].pp_link = page_free_list;
 			page_free_list = &pages[i];
@@ -835,11 +847,14 @@ check_kern_pgdir(void)
 	}
 	// check kernel stack
 	// (updated in lab 4 to check per-CPU kernel stacks)
-	for (n = 0; n < NCPU; n++) {
+	for (n = 1; n < NCPU; n++) {
 		uint32_t base = KSTACKTOP - (KSTKSIZE + KSTKGAP) * (n + 1);
-		for (i = 0; i < KSTKSIZE; i += PGSIZE)
+		for (i = 0; i < KSTKSIZE; i += PGSIZE){
+			//cprintf("%x\n", check_va2pa(pgdir, base + KSTKGAP + i));
+			//cprintf("%x\n", PADDR(percpu_kstacks[n]) + i);
 			assert(check_va2pa(pgdir, base + KSTKGAP + i)
 				== PADDR(percpu_kstacks[n]) + i);
+			}
 		for (i = 0; i < KSTKGAP; i += PGSIZE)
 			assert(check_va2pa(pgdir, base + i) == ~0);
 	}

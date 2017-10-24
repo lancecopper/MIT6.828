@@ -113,21 +113,30 @@ trap_init_percpu(void)
 	// user space on that CPU.
 	//
 	// LAB 4: Your code here:
+	struct Taskstate ts = thiscpu->cpu_ts;
+	int i = thiscpu->cpu_id;
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
-	ts.ts_esp0 = KSTACKTOP;
+	ts.ts_esp0 = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
 	ts.ts_ss0 = GD_KD;
 	ts.ts_iomb = sizeof(struct Taskstate);
 
 	// Initialize the TSS slot of the gdt.
-	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
+	gdt[(GD_TSS0 >> 3) + i] = SEG16(STS_T32A, (uint32_t) (&ts),
 					sizeof(struct Taskstate) - 1, 0);
-	gdt[GD_TSS0 >> 3].sd_s = 0;
+	gdt[(GD_TSS0 >> 3) + i].sd_s = 0;
 
 	// Load the TSS selector (like other segment selectors, the
 	// bottom three bits are special; we leave them 0)
-	ltr(GD_TSS0);
+	// In protected mode the segment_part is replaced by a 16 bit selector,
+	// the 13 upper bits (bit 3 to bit 15) of the selector contains the index of
+	// an entry inside a descriptor table. The next bit (bit 2) specifies
+	// if the operation is used with the GDT or the LDT.
+	// The lowest two bits (bit 1 and bit 0) of the selector are combined to
+	// define the privilege of the request;
+	// where a value of 0 has the highest priority and value of 3 is the lowest. [wikipedia]
+	ltr(GD_TSS0 + (i << 3));
 
 	// Load the IDT
 	lidt(&idt_pd);
@@ -209,14 +218,7 @@ trap_dispatch(struct Trapframe *tf)
 		// interrupt using lapic_eoi() before calling the scheduler!
 		// LAB 4: Your code here.
 
-		// Unexpected trap: The user process or the kernel has a bug.
-		print_trapframe(tf);
-		if (tf->tf_cs == GD_KT)
-			panic("unhandled trap in kernel");
-		else {
-			env_destroy(curenv);
-			return;
-		}
+
 		default:
 			// Unexpected trap: The user process or the kernel has a bug.
 			print_trapframe(tf);
@@ -257,6 +259,7 @@ trap(struct Trapframe *tf)
 		// Acquire the big kernel lock before doing any
 		// serious kernel work.
 		// LAB 4: Your code here.
+		lock_kernel();
 		assert(curenv);
 
 		// Garbage collect if current enviroment is a zombie
