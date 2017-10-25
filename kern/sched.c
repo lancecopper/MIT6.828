@@ -35,7 +35,6 @@ sched_yield(void)
 		if(i == NENV)
 			i = 0;
 		if(envs[i].env_status == ENV_RUNNABLE){
-			cprintf("sched_yield\n");
 			env_run(&envs[i]);
 		}
 	}
