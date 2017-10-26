@@ -247,6 +247,39 @@ sys_page_unmap(envid_t envid, void *va)
 	return 0;
 }
 
+static int
+sys_checkpoint(envid_t envid, void *va){
+	struct PageInfo *pp1, *pp2;
+	struct Env *env;
+	if(envid2env(envid, &env, 1) < 0)
+		return -E_BAD_ENV;
+	if((uintptr_t)va >= UTOP || PGOFF(va))
+		return -E_INVAL;
+	if(!(pp1 = page_lookup(curenv->env_pgdir, va, 0)))
+		return -E_INVAL;
+	if(!(pp2 = page_lookup(env->env_pgdir, (void *)(USTACKTOP - PGSIZE), 0)))
+		return -E_INVAL;
+	memmove(page2kva(pp1), page2kva(pp2), PGSIZE);
+	env->env_checkpoint = env->env_tf;
+	return 0;
+}
+static int
+sys_restart(envid_t envid, void *va){
+	struct PageInfo *pp1, *pp2;
+	struct Env *env;
+	if(envid2env(envid, &env, 1) < 0)
+		return -E_BAD_ENV;
+	if((uintptr_t)va >= UTOP || PGOFF(va))
+		return -E_INVAL;
+	if(!(pp1 = page_lookup(curenv->env_pgdir, va, 0)))
+		return -E_INVAL;
+	if(!(pp2 = page_lookup(env->env_pgdir, (void *)(USTACKTOP - PGSIZE), 0)))
+		return -E_INVAL;
+	memmove(page2kva(pp2), page2kva(pp1), PGSIZE);
+	env->env_tf = env->env_checkpoint;
+	return 0;
+}
+
 // Try to send 'value' to the target env 'envid'.
 // If srcva < UTOP, then also send page currently mapped at 'srcva',
 // so that receiver gets a duplicate mapping of the same page.
@@ -343,6 +376,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_page_map((envid_t)a1, (void *)a2, (envid_t)a3, (void *)a4, (int)a5);
 		case SYS_page_unmap:
 			return sys_page_unmap((envid_t)a1, (void *)a2);
+		case SYS_checkpoint:
+			return sys_checkpoint((envid_t)a1, (void *)a2);
+		case SYS_restart:
+			return sys_restart((envid_t)a1, (void *)a2);
 		default:
 			return -E_INVAL;
 	}

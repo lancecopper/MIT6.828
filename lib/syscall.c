@@ -85,6 +85,18 @@ sys_page_unmap(envid_t envid, void *va)
 	return syscall(SYS_page_unmap, 1, envid, (uint32_t) va, 0, 0, 0);
 }
 
+int
+sys_checkpoint(envid_t envid, void *va)
+{
+	return syscall(SYS_checkpoint, 1, envid, (uint32_t) va, 0, 0, 0);
+}
+
+int
+sys_restart(envid_t envid, void *va)
+{
+	return syscall(SYS_restart, 1, envid, (uint32_t) va, 0, 0, 0);
+}
+
 // sys_exofork is inlined in lib.h
 
 int

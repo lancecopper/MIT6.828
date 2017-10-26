@@ -14,6 +14,8 @@ enum {
 	SYS_env_set_status,
 	SYS_env_set_pgfault_upcall,
 	SYS_yield,
+	SYS_checkpoint,
+	SYS_restart,
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
 	NSYSCALLS
