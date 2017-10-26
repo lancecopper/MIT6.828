@@ -378,7 +378,6 @@ load_icode(struct Env *e, uint8_t *binary)
 		// p_pa is the load address of this segment (as well
 		// as the physical address)
 		if(ph->p_type == ELF_PROG_LOAD){
-			//region_alloc(struct Env *e, void *va, size_t len)
 			region_alloc(e, (void *)(ph->p_va), ph->p_memsz);
 			memmove((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
 			memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
@@ -478,9 +477,7 @@ env_destroy(struct Env *e)
 		e->env_status = ENV_DYING;
 		return;
 	}
-
 	env_free(e);
-
 	if (curenv == e) {
 		curenv = NULL;
 		sched_yield();

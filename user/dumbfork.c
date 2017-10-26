@@ -11,7 +11,7 @@ umain(int argc, char **argv)
 {
 	envid_t who;
 	int i;
-
+	cprintf("user_1\n");
 	// fork a child process
 	who = dumbfork();
 
@@ -26,13 +26,14 @@ void
 duppage(envid_t dstenv, void *addr)
 {
 	int r;
-
 	// This is NOT what you should do in your fork.
 	if ((r = sys_page_alloc(dstenv, addr, PTE_P|PTE_U|PTE_W)) < 0)
 		panic("sys_page_alloc: %e", r);
 	if ((r = sys_page_map(dstenv, addr, 0, UTEMP, PTE_P|PTE_U|PTE_W)) < 0)
 		panic("sys_page_map: %e", r);
+	cprintf("user_5\n");
 	memmove(UTEMP, addr, PGSIZE);
+	cprintf("user_6\n");
 	if ((r = sys_page_unmap(0, UTEMP)) < 0)
 		panic("sys_page_unmap: %e", r);
 }
@@ -58,16 +59,18 @@ dumbfork(void)
 		// The copied value of the global variable 'thisenv'
 		// is no longer valid (it refers to the parent!).
 		// Fix it and return 0.
+		cprintf("child1\n");
 		thisenv = &envs[ENVX(sys_getenvid())];
+		cprintf("child1\n");
 		return 0;
 	}
-
 	// We're the parent.
 	// Eagerly copy our entire address space into the child.
 	// This is NOT what you should do in your fork implementation.
+	cprintf("user_2\n");
 	for (addr = (uint8_t*) UTEXT; addr < end; addr += PGSIZE)
 		duppage(envid, addr);
-
+	cprintf("user_8\n");
 	// Also copy the stack we are currently running on.
 	duppage(envid, ROUNDDOWN(&addr, PGSIZE));
 
@@ -77,4 +80,3 @@ dumbfork(void)
 
 	return envid;
 }
-

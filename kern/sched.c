@@ -31,14 +31,18 @@ sched_yield(void)
 	// LAB 4: Your code here.
 	idle = curenv;
 	uint32_t start = idle ? ENVX(idle->env_id) : 0;
-	for(uint32_t i = (start + 1) % NENV; NENV != start; i++){
-		if(i == NENV)
-			i = 0;
+	uint32_t i = start;
+	while(1){
 		if(envs[i].env_status == ENV_RUNNABLE){
 			env_run(&envs[i]);
 		}
+		i += 1;
+		if(i == NENV)
+			i = 0;
+		if(i == start)
+			break;
 	}
-	if(idle->env_status == ENV_RUNNING)
+	if(idle && idle->env_status == ENV_RUNNING)
 		env_run(idle);
 	// sched_halt never returns
 	sched_halt();
@@ -57,15 +61,15 @@ sched_halt(void)
 	for (i = 0; i < NENV; i++) {
 		if ((envs[i].env_status == ENV_RUNNABLE ||
 		     envs[i].env_status == ENV_RUNNING ||
-		     envs[i].env_status == ENV_DYING))
-			break;
+		     envs[i].env_status == ENV_DYING)){
+					 break;
+				 }
 	}
 	if (i == NENV) {
 		cprintf("No runnable environments in the system!\n");
 		while (1)
 			monitor(NULL);
 	}
-
 	// Mark that no environment is running on this CPU
 	curenv = NULL;
 	lcr3(PADDR(kern_pgdir));
