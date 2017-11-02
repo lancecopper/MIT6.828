@@ -22,7 +22,6 @@ sys_cputs(const char *s, size_t len)
 	// Destroy the environment if not.
 
 	// LAB 3: Your code here.
-	//cprintf("hello_string_addr:%d\n", (uintptr_t)s);
 	user_mem_assert(curenv, s, len, 0);
 	// Print the string supplied by the user.
 	cprintf("%.*s", len, s);
@@ -133,7 +132,11 @@ static int
 sys_env_set_pgfault_upcall(envid_t envid, void *func)
 {
 	// LAB 4: Your code here.
-	panic("sys_env_set_pgfault_upcall not implemented");
+	struct Env *env;
+	if(envid2env(envid, &env, 1) < 0)
+		return -E_BAD_ENV;
+	env->env_pgfault_upcall = func;
+	return 0;
 }
 
 // Allocate a page of memory and map it at 'va' with permission
@@ -169,7 +172,6 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		return -E_BAD_ENV;
 	if((uintptr_t)va >= UTOP || PGOFF(va) ||
 			perm & ~PTE_SYSCALL || !(perm & PTE_U) || !(perm & PTE_P)){
-		cprintf("hit the bug\n");
 		return -E_INVAL;}
 	if((pp = page_alloc(ALLOC_ZERO)) == NULL)
 		return -E_NO_MEM;
@@ -211,17 +213,17 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	struct Env *srcenv, *dstenv;
 	pte_t *pte;
 	struct PageInfo *pp;
-	if(envid2env(srcenvid, &srcenv, 1) < 0 || envid2env(dstenvid, &dstenv, 1) < 0){
-		return -E_BAD_ENV;}
-	if((uintptr_t)srcva >= UTOP || PGOFF(srcva) || (uintptr_t)dstva >= UTOP || PGOFF(dstva)){
-		return -E_INVAL;}
-	if(!(pp = page_lookup(srcenv->env_pgdir, srcva, &pte))){
-		return -E_INVAL;}
+	if(envid2env(srcenvid, &srcenv, 1) < 0 || envid2env(dstenvid, &dstenv, 1) < 0)
+		return -E_BAD_ENV;
+	if((uintptr_t)srcva >= UTOP || PGOFF(srcva) || (uintptr_t)dstva >= UTOP || PGOFF(dstva))
+		return -E_INVAL;
+	if(!(pp = page_lookup(srcenv->env_pgdir, srcva, &pte)))
+		return -E_INVAL;
 	if((~(*pte) & PTE_W && perm & PTE_W) || perm & ~PTE_SYSCALL ||
-		 !(perm & PTE_U) || !(perm & PTE_P)){
-		return -E_INVAL;}
-	if(page_insert(dstenv->env_pgdir, pp, dstva, perm) < 0){
-		return -E_NO_MEM;}
+		 !(perm & PTE_U) || !(perm & PTE_P))
+		return -E_INVAL;
+	if(page_insert(dstenv->env_pgdir, pp, dstva, perm) < 0)
+		return -E_NO_MEM;
 	return 0;
 }
 
@@ -352,7 +354,6 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
 
-	//panic("syscall not implemented");
 	switch (syscallno) {
 		case SYS_cputs:
 			sys_cputs((const char *)a1, (size_t)a2);
@@ -380,6 +381,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_checkpoint((envid_t)a1, (void *)a2);
 		case SYS_restart:
 			return sys_restart((envid_t)a1, (void *)a2);
+		case SYS_env_set_pgfault_upcall:
+			return sys_env_set_pgfault_upcall((envid_t) a1, (void *)a2);
 		default:
 			return -E_INVAL;
 	}

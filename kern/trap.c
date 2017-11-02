@@ -196,7 +196,7 @@ trap_dispatch(struct Trapframe *tf)
 	switch ((tf->tf_trapno)) {
 		case T_PGFLT:
 			if((tf->tf_cs & 3) == 0)
-				panic("page fault!");
+				panic("page fault in kernel mode!");
 			page_fault_handler(tf);
 			break;
 		case T_BRKPT:
@@ -338,11 +338,33 @@ page_fault_handler(struct Trapframe *tf)
 	//   To change what the user environment runs, modify 'curenv->env_tf'
 	//   (the 'tf' variable points at 'curenv->env_tf').
 
-	// LAB 4: Your code here.
 
-	// Destroy the environment that caused the fault.
-	cprintf("[%08x] user fault va %08x ip %08x\n",
-		curenv->env_id, fault_va, tf->tf_eip);
-	print_trapframe(tf);
-	env_destroy(curenv);
+
+	// Note that the grade script assumes you will first check for the page
+	// fault upcall and print the "user fault va" message below if there is
+	// none.  The remaining three checks can be combined into a single test.
+
+	// LAB 4: Your code here.
+	uint32_t esp;
+	if(!curenv->env_pgfault_upcall){
+		// Destroy the environment that caused the fault.
+		cprintf("[%08x] user fault va %08x ip %08x\n",
+			curenv->env_id, fault_va, tf->tf_eip);
+		print_trapframe(tf);
+		env_destroy(curenv);
+	}
+	if(tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp < UXSTACKTOP)
+		esp = tf->tf_esp - 4 - sizeof(struct UTrapframe);
+	else
+		esp = UXSTACKTOP - sizeof(struct UTrapframe);
+	user_mem_assert(curenv, (void *)esp, 0, PTE_W);
+	((struct UTrapframe *)esp)->utf_fault_va = fault_va;
+	((struct UTrapframe *)esp)->utf_err = tf->tf_err;
+	((struct UTrapframe *)esp)->utf_regs = tf->tf_regs;
+	((struct UTrapframe *)esp)->utf_eip = tf->tf_eip;
+	((struct UTrapframe *)esp)->utf_eflags = tf->tf_eflags;
+	((struct UTrapframe *)esp)->utf_esp = tf->tf_esp;
+	tf->tf_esp = esp;
+  tf->tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+	env_run(curenv);
 }
