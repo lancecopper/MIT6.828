@@ -63,13 +63,13 @@ duppage(envid_t envid, unsigned pn)
 
 	// LAB 4: Your code here.
 	uint32_t addr = pn * PGSIZE;
-	int perm = PTE_P | PTE_U;
+	int perm = uvpt[pn] & 0xFFF;
 	if(uvpt[pn] & (PTE_W | PTE_COW)){
 		perm |= PTE_COW;
 	}
 	if((r = sys_page_map(0, (void *)addr, envid, (void *)addr, perm)) < 0)
 		panic("sys_page_map: %e", r);
-	if(perm & PTE_COW && (r = sys_page_map(0, (void *)addr, 0, (void *)addr, perm)) < 0)
+	if(perm & PTE_COW && (r = sys_page_map(0, (void *)addr, 0, (void *)addr, perm | PTE_COW)) < 0)
 		panic("sys_page_map: %e", r);
 	return 0;
 }
@@ -95,7 +95,6 @@ fork(void)
 {
 	envid_t envid;
 	int r, pn;
-	extern unsigned char end[];
 	extern void _pgfault_upcall(void);
 	// LAB 4: Your code here.
 	set_pgfault_handler(pgfault);
@@ -104,7 +103,8 @@ fork(void)
 		panic("sys_exofork: %e", envid);
 	if(envid == 0){
 		// We're the child.
-		thisenv = &envs[ENVX(sys_getenvid())];
+		// modified for sfork
+		// thisenv = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
 	// We're the parent.
@@ -139,6 +139,47 @@ fork(void)
 int
 sfork(void)
 {
-	panic("sfork not implemented");
-	return -E_INVAL;
+	envid_t envid;
+	int r, pn;
+	extern void _pgfault_upcall(void);
+
+	set_pgfault_handler(pgfault);
+	envid = sys_exofork();
+	if(envid < 0)
+		panic("sys_exofork: %e", envid);
+	if(envid == 0){
+		return 0;
+	}
+
+	for(int i = PDX(UTEXT); i < PDX(UXSTACKTOP); i++){
+		if(uvpd[i] & PTE_P){
+			for(int j = 0; j < NPTENTRIES; j++){
+				pn = PGNUM(PGADDR(i, j, 0));
+				if(pn == PGNUM(UXSTACKTOP - PGSIZE))
+					continue;
+				if(pn == PGNUM(USTACKTOP - PGSIZE))
+					duppage(envid, pn);
+				if(uvpt[pn] & PTE_P){
+					int perm = uvpt[pn] & 0xFFF;
+					uint32_t addr = pn * PGSIZE;
+					if((r = sys_page_map(0, (void *)addr, envid, (void *)addr, perm)) < 0)
+						panic("sys_page_map: %e", r);;
+					}
+			}
+		}
+	}
+	if((r = sys_page_alloc(envid, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_P | PTE_W)) < 0)
+		panic("sys_page_alloc: %e", r);
+	if((r = sys_page_map(envid, (void *)(UXSTACKTOP - PGSIZE), 0, UTEMP, PTE_U | PTE_P | PTE_W)) < 0)
+		panic("sys_page_map: %e", r);
+	memmove(UTEMP, (void *)(UXSTACKTOP - PGSIZE), PGSIZE);
+	if((r = sys_page_unmap(0, UTEMP)) < 0)
+		panic("sys_page_unmap: %e", r);
+	if((r = sys_env_set_pgfault_upcall(envid, _pgfault_upcall)) < 0)
+		panic("sys_env_set_pgfault_upcall: %e", r);
+	// Start the child environment running
+	if((r = sys_env_set_status(envid, ENV_RUNNABLE)) < 0)
+		panic("sys_env_set_status: %e", r);
+
+	return envid;
 }

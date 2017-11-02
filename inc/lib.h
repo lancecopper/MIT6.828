@@ -24,8 +24,10 @@
 void	umain(int argc, char **argv);
 
 // libmain.c or entry.S
+#define thisenv (&envs[ENVX(sys_getenvid())])
+
 extern const char *binaryname;
-extern const volatile struct Env *thisenv;
+// extern const volatile struct Env *thisenv;
 extern const volatile struct Env envs[NENV];
 extern const volatile struct PageInfo pages[];
 
