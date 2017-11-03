@@ -63,13 +63,13 @@ duppage(envid_t envid, unsigned pn)
 
 	// LAB 4: Your code here.
 	uint32_t addr = pn * PGSIZE;
-	int perm = uvpt[pn] & 0xFFF;
+	int perm = PTE_U | PTE_P;
 	if(uvpt[pn] & (PTE_W | PTE_COW)){
 		perm |= PTE_COW;
 	}
 	if((r = sys_page_map(0, (void *)addr, envid, (void *)addr, perm)) < 0)
 		panic("sys_page_map: %e", r);
-	if(perm & PTE_COW && (r = sys_page_map(0, (void *)addr, 0, (void *)addr, perm | PTE_COW)) < 0)
+	if(perm & PTE_COW && (r = sys_page_map(0, (void *)addr, 0, (void *)addr, perm)) < 0)
 		panic("sys_page_map: %e", r);
 	return 0;
 }
@@ -160,7 +160,7 @@ sfork(void)
 				if(pn == PGNUM(USTACKTOP - PGSIZE))
 					duppage(envid, pn);
 				if(uvpt[pn] & PTE_P){
-					int perm = uvpt[pn] & 0xFFF;
+					int perm = uvpt[pn] & PTE_SYSCALL;
 					uint32_t addr = pn * PGSIZE;
 					if((r = sys_page_map(0, (void *)addr, envid, (void *)addr, perm)) < 0)
 						panic("sys_page_map: %e", r);;

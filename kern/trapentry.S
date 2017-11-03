@@ -64,6 +64,23 @@
     TRAPHANDLER(mchk_entry, T_MCHK, 0, 0);
     TRAPHANDLER(simderr_entry, T_SIMDERR, 0, 0);
     TRAPHANDLER(syscall_entry, T_SYSCALL, 0, 1);
+    TRAPHANDLER(irq0_entry, IRQ_OFFSET, 0, 0)
+    TRAPHANDLER(irq1_entry, IRQ_OFFSET + 1, 0, 0)
+    TRAPHANDLER(irq2_entry, IRQ_OFFSET + 2, 0, 0)
+    TRAPHANDLER(irq3_entry, IRQ_OFFSET + 3, 0, 0)
+    TRAPHANDLER(irq4_entry, IRQ_OFFSET + 4, 0, 0)
+    TRAPHANDLER(irq5_entry, IRQ_OFFSET + 5, 0, 0)
+    TRAPHANDLER(irq6_entry, IRQ_OFFSET + 6, 0, 0)
+    TRAPHANDLER(irq7_entry, IRQ_OFFSET + 7, 0, 0)
+    TRAPHANDLER(irq8_entry, IRQ_OFFSET + 8, 0, 0)
+    TRAPHANDLER(irq9_entry, IRQ_OFFSET + 9, 0, 0)
+    TRAPHANDLER(irq10_entry, IRQ_OFFSET + 10, 0, 0)
+    TRAPHANDLER(irq11_entry, IRQ_OFFSET + 11, 0, 0)
+    TRAPHANDLER(irq12_entry, IRQ_OFFSET + 12, 0, 0)
+    TRAPHANDLER(irq13_entry, IRQ_OFFSET + 13, 0, 0)
+    TRAPHANDLER(irq14_entry, IRQ_OFFSET + 14, 0, 0)
+    TRAPHANDLER(irq15_entry, IRQ_OFFSET + 15, 0, 0)
+
 .data
     .long 0, 0, 0   // interupt end identify
 /*

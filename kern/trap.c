@@ -74,11 +74,14 @@ trap_init(void)
 	int istrap;
 
 	// LAB 3: Your code here
+	// All INT_NUM between 0x0 and 0x1F, inclusive,
+	// are reserved for exceptions; INT_NUM bigger than
+	// 0x1F are used for interrupt routines.
 	for (int i = 0; entry_data[i][0] != 0; i++){
-		if(entry_data[i][1] == T_SYSCALL)
-			istrap = 1;
-		else
-			istrap = 0;
+		// if(entry_data[i][1] < IRQ_OFFSET)
+		//	istrap = 1;
+		// else
+		istrap = 0;
 		SETGATE(idt[entry_data[i][1]], istrap, GD_KT, entry_data[i][0], entry_data[i][2]*3);
 	}
 	// Per-CPU setup
@@ -213,12 +216,14 @@ trap_dispatch(struct Trapframe *tf)
 		case IRQ_OFFSET + IRQ_SPURIOUS:
 			cprintf("Spurious interrupt on irq 7\n");
 			print_trapframe(tf);
-			return;
+			break;
 		// Handle clock interrupts. Don't forget to acknowledge the
 		// interrupt using lapic_eoi() before calling the scheduler!
 		// LAB 4: Your code here.
-
-
+		case IRQ_OFFSET + IRQ_TIMER:
+			lapic_eoi();
+			sched_yield();
+			break;
 		default:
 			// Unexpected trap: The user process or the kernel has a bug.
 			print_trapframe(tf);
@@ -252,7 +257,7 @@ trap(struct Trapframe *tf)
 	// the interrupt path.
 	assert(!(read_eflags() & FL_IF));
 
-	// cprintf("Incoming TRAP frame at %p\n", tf);
+	//cprintf("Incoming TRAP frame at %p\n", tf);
 
 	if ((tf->tf_cs & 3) == 3) {
 		// Trapped from user mode.
