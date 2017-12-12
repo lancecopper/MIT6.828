@@ -31,7 +31,9 @@ struct mp {             // floating pointer [MP 4.1]
 	uint8_t type;                   // MP system config type
 	uint8_t imcrp;
 	uint8_t reserved[3];
-} __attribute__((__packed__));
+} __attribute__((__packed__));		// __attribute__ ((packed)) 的作用就是告诉编译器
+																	// 取消结构在编译过程中的优化对齐,	按照实际占用字节数进行对齐，
+																	// 是GCC特有的语法。这个功能是跟操作系统没关系，跟编译器有关.
 
 struct mpconf {         // configuration table header [MP 4.2]
 	uint8_t signature[4];           // "PCMP"

@@ -33,10 +33,10 @@
 .set PROT_MODE_CSEG, 0x8	# kernel code segment selector
 .set PROT_MODE_DSEG, 0x10	# kernel data segment selector
 
-.code16           
+.code16
 .globl mpentry_start
 mpentry_start:
-	cli            
+	cli
 
 	xorw    %ax, %ax
 	movw    %ax, %ds
@@ -74,6 +74,7 @@ start32:
 	movl    $0x0, %ebp       # nuke frame pointer
 
 	# Call mp_main().  (Exercise for the reader: why the indirect call?)
+	# 为了进高地址，如果直接调用的话，函数地址会被编译为相对地址，程序仍将运行在低地址．
 	movl    $mp_main, %eax
 	call    *%eax
 

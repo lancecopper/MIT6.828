@@ -1,8 +1,9 @@
-// Ping-pong a counter between two processes.
-// Only need to start one of these -- splits into two, crudely.
+// display how to get a snapshot of a child process,
+// and restart it from the snapshot.
 
 #include <inc/string.h>
 #include <inc/lib.h>
+
 
 envid_t dumbfork(void);
 
@@ -10,13 +11,23 @@ void
 umain(int argc, char **argv)
 {
 	envid_t who;
-	int i;
+	int i, r;
 	// fork a child process
 	who = dumbfork();
 
 	// print a message and yield to the other a few times
-	for (i = 0; i < (who ? 10 : 20); i++) {
+  for (i = 0; i < (who ? 20 : 20); i++) {
 		cprintf("%d: I am the %s!\n", i, who ? "parent" : "child");
+    if(who && i == 5){
+      if ((r = sys_page_alloc(0, UTEMP, PTE_P|PTE_U|PTE_W)) < 0)
+    		panic("sys_page_alloc: %e", r);
+      sys_checkpoint(who, UTEMP);
+    }
+    if(who && i == 10){
+      sys_restart(who, UTEMP);
+      if ((r = sys_page_unmap(0, UTEMP)) < 0)
+    		panic("sys_page_unmap: %e", r);
+    }
 		sys_yield();
 	}
 }
