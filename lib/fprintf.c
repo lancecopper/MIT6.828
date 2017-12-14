@@ -78,4 +78,3 @@ printf(const char *fmt, ...)
 
 	return cnt;
 }
-

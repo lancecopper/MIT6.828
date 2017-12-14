@@ -264,7 +264,7 @@ umain(int argc, char **argv)
 
 	interactive = '?';
 	echocmds = 0;
-	argstart(&argc, argv, &args);
+
 	while ((r = argnext(&args)) >= 0)
 		switch (r) {
 		case 'd':
@@ -319,4 +319,3 @@ umain(int argc, char **argv)
 			wait(r);
 	}
 }
-

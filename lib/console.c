@@ -65,7 +65,6 @@ opencons(void)
 {
 	int r;
 	struct Fd* fd;
-
 	if ((r = fd_alloc(&fd)) < 0)
 		return r;
 	if ((r = sys_page_alloc(0, fd, PTE_P|PTE_U|PTE_W|PTE_SHARE)) < 0)
@@ -125,4 +124,3 @@ devcons_stat(struct Fd *fd, struct Stat *stat)
 	strcpy(stat->st_name, "<cons>");
 	return 0;
 }
-
