@@ -32,7 +32,7 @@ struct File {
 	uint32_t f_type;		// file type
 
 	// Block pointers.
-	// A block is allocated iff its value is != 0.
+	// A block is allocated if its value is != 0.
 	uint32_t f_direct[NDIRECT];	// direct blocks
 	uint32_t f_indirect;		// indirect block
 
