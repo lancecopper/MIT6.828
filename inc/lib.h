@@ -29,10 +29,9 @@ void	umain(int argc, char **argv);
 // libmain.c or entry.S
 // uncomment 	code below when: implement lab4 ex12 challenge sfork:
 // #define thisenv (&envs[ENVX(sys_getenvid())])
-struct Env* thisenv;
 
+extern const volatile struct Env *thisenv;
 extern const char *binaryname;
-// extern const volatile struct Env *thisenv;
 extern const volatile struct Env envs[NENV];
 extern const volatile struct PageInfo pages[];
 
