@@ -310,7 +310,6 @@ serve(void)
 	uint32_t req, whom;
 	int perm, r;
 	void *pg;
-
 	while (1) {
 		perm = 0;
 		req = ipc_recv((int32_t *) &whom, fsreq, &perm);

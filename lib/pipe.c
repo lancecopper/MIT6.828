@@ -1,6 +1,6 @@
 #include <inc/lib.h>
 
-#define debug 0
+#define debug 1
 
 static ssize_t devpipe_read(struct Fd *fd, void *buf, size_t n);
 static ssize_t devpipe_write(struct Fd *fd, const void *buf, size_t n);
@@ -76,15 +76,18 @@ static int
 _pipeisclosed(struct Fd *fd, struct Pipe *p)
 {
 	int n, nn, ret;
-
 	while (1) {
 		n = thisenv->env_runs;
 		ret = pageref(fd) == pageref(p);
 		nn = thisenv->env_runs;
-		if (n == nn)
+		cprintf("2[%d]sn=%d, nn=%d\n",thisenv->env_id, n, nn);
+		if (n == nn){
+			cprintf("ret@@@@@@!\n");
 			return ret;
-		if (n != nn && ret == 1)
+		}
+		if (n != nn && ret == 1){
 			cprintf("pipe race avoided\n", n, thisenv->env_runs, ret);
+		}
 	}
 }
 
@@ -150,13 +153,17 @@ devpipe_write(struct Fd *fd, const void *vbuf, size_t n)
 
 	buf = vbuf;
 	for (i = 0; i < n; i++) {
+		cprintf("###devpipe_write loop!\n");
 		while (p->p_wpos >= p->p_rpos + sizeof(p->p_buf)) {
 			// pipe is full
 			// if all the readers are gone
 			// (it's only writers like us now),
 			// note eof
-			if (_pipeisclosed(fd, p))
+			cprintf("###@@@@@@@\n");
+			if (_pipeisclosed(fd, p)){
+				cprintf("###1devpipe_write return!\n");
 				return 0;
+			}
 			// yield and see what happens
 			if (debug)
 				cprintf("devpipe_write yield\n");
@@ -166,8 +173,9 @@ devpipe_write(struct Fd *fd, const void *vbuf, size_t n)
 		// wait to increment wpos until the byte is stored!
 		p->p_buf[p->p_wpos % PIPEBUFSIZ] = buf[i];
 		p->p_wpos++;
+		cprintf("###2devpipe_write return!\n");
 	}
-
+	cprintf("###3devpipe_write return!\n");
 	return i;
 }
 
@@ -188,4 +196,3 @@ devpipe_close(struct Fd *fd)
 	(void) sys_page_unmap(0, fd);
 	return sys_page_unmap(0, fd2data(fd));
 }
-

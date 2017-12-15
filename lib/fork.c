@@ -25,8 +25,10 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
-	if(!(err & FEC_WR && uvpt[PGNUM(addr)] & PTE_COW))
+	if(!(err & FEC_WR && uvpt[PGNUM(addr)] & PTE_COW)){
+		cprintf("err : %x, PTE: %x\n", err, uvpt[PGNUM(addr)] & PTE_SYSCALL);
 		panic("attempt to write an unwritable page!");
+	}
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -72,11 +74,11 @@ duppage(envid_t envid, unsigned pn)
 	}
 	if((r = sys_page_map(0, (void *)addr, envid, (void *)addr, perm)) < 0)
 		panic("sys_page_map: %e", r);
-	if(perm & PTE_COW && !(perm & PTE_SHARE) &&
-		 (r = sys_page_map(0, (void *)addr, 0, (void *)addr, perm)) < 0)
+	if(perm & PTE_COW && !(perm & PTE_SHARE) && (r = sys_page_map(0, (void *)addr, 0, (void *)addr, perm)) < 0)
 		panic("sys_page_map: %e", r);
 	return 0;
 }
+
 
 //
 // User-level fork with copy-on-write.

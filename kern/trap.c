@@ -222,6 +222,7 @@ trap_dispatch(struct Trapframe *tf)
 		// LAB 4: Your code here.
 		case IRQ_OFFSET + IRQ_TIMER:
 			lapic_eoi();
+			cprintf("@@@@@@@@@@@@@timer yield\n");
 			sched_yield();
 			break;
 		// Handle keyboard and serial interrupts.
@@ -300,8 +301,11 @@ trap(struct Trapframe *tf)
 	// If we made it to this point, then no other environment was
 	// scheduled, so we should return to the current environment
 	// if doing so makes sense.
-	if (curenv && curenv->env_status == ENV_RUNNING)
+	if (curenv && curenv->env_status == ENV_RUNNING){
+		cprintf("tr_trapno: %d\n", tf->tf_trapno);
+		cprintf("trap->env_run!\n");
 		env_run(curenv);
+	}
 	else
 		sched_yield();
 }
@@ -379,5 +383,6 @@ page_fault_handler(struct Trapframe *tf)
 	((struct UTrapframe *)esp)->utf_esp = tf->tf_esp;
 	tf->tf_esp = esp;
   tf->tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+	cprintf("page_fault_handler->env_run!\n");
 	env_run(curenv);
 }

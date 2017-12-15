@@ -34,6 +34,7 @@ sched_yield(void)
 	uint32_t i = start;
 	while(1){
 		if(envs[i].env_status == ENV_RUNNABLE){
+			cprintf("sched_yield->env_run1\n");
 			env_run(&envs[i]);
 		}
 		i += 1;
@@ -42,8 +43,10 @@ sched_yield(void)
 		if(i == start)
 			break;
 	}
-	if(idle && idle->env_status == ENV_RUNNING)
+	if(idle && idle->env_status == ENV_RUNNING){
+		cprintf("sched_yield->env_run2\n");
 		env_run(idle);
+	}
 	// sched_halt never returns
 	sched_halt();
 }

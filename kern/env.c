@@ -19,6 +19,7 @@ struct Env *envs = NULL;		// All environments
 static struct Env *env_free_list;	// Free environment list
 					// (linked by Env->env_link)
 
+#define debug 1
 #define ENVGENSHIFT	12		// >= LOGNENV
 
 // Global descriptor table.
@@ -541,6 +542,7 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 
 	// LAB 3: Your code here.
+	cprintf("env_run!\n");
 	if(curenv && curenv->env_status == ENV_RUNNING)
 		curenv->env_status = ENV_RUNNABLE;
 	curenv = e;

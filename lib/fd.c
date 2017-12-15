@@ -1,6 +1,6 @@
 #include <inc/lib.h>
 
-#define debug		0
+#define debug		1
 
 // Maximum number of file descriptors a program may hold open concurrently
 #define MAXFD		32
@@ -214,6 +214,9 @@ read(int fdnum, void *buf, size_t n)
 		cprintf("[%08x] read %d -- bad mode\n", thisenv->env_id, fdnum);
 		return -E_INVAL;
 	}
+	if (debug)
+		cprintf("read %d %p %d via dev %s\n",
+			fdnum, buf, n, dev->dev_name);
 	if (!dev->dev_read)
 		return -E_NOT_SUPP;
 	return (*dev->dev_read)(fd, buf, n);
