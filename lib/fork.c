@@ -126,7 +126,7 @@ fork(void)
 	if(envid == 0){
 		// We're the child.
 		// modified for sfork
-		// thisenv = &envs[ENVX(sys_getenvid())];
+		thisenv = &envs[ENVX(sys_getenvid())];
 		return 0;
 	}
 	// We're the parent.
