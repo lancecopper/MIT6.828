@@ -46,6 +46,7 @@ enum EnvType {
 };
 
 struct Env {
+	struct Trapframe env_checkpoint;
 	struct Trapframe env_tf;	// Saved registers
 	struct Env *env_link;		// Next free Env
 	envid_t env_id;			// Unique environment identifier

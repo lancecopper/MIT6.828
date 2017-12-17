@@ -76,15 +76,16 @@ static int
 _pipeisclosed(struct Fd *fd, struct Pipe *p)
 {
 	int n, nn, ret;
-
 	while (1) {
 		n = thisenv->env_runs;
 		ret = pageref(fd) == pageref(p);
 		nn = thisenv->env_runs;
-		if (n == nn)
+		if (n == nn){
 			return ret;
-		if (n != nn && ret == 1)
+		}
+		if (n != nn && ret == 1){
 			cprintf("pipe race avoided\n", n, thisenv->env_runs, ret);
+		}
 	}
 }
 
@@ -167,7 +168,6 @@ devpipe_write(struct Fd *fd, const void *vbuf, size_t n)
 		p->p_buf[p->p_wpos % PIPEBUFSIZ] = buf[i];
 		p->p_wpos++;
 	}
-
 	return i;
 }
 
@@ -188,4 +188,3 @@ devpipe_close(struct Fd *fd)
 	(void) sys_page_unmap(0, fd);
 	return sys_page_unmap(0, fd2data(fd));
 }
-

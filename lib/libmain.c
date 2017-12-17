@@ -2,7 +2,6 @@
 // entry.S already took care of defining envs, pages, uvpd, and uvpt.
 
 #include <inc/lib.h>
-
 extern void umain(int argc, char **argv);
 
 const volatile struct Env *thisenv;
@@ -13,7 +12,8 @@ libmain(int argc, char **argv)
 {
 	// set thisenv to point at our Env structure in envs[].
 	// LAB 3: Your code here.
-	thisenv = 0;
+	// comment out code below when: implement lab4 ex12 challenge sfork:
+	thisenv = &envs[ENVX(sys_getenvid())];
 
 	// save the name of the program so that panic() can use it
 	if (argc > 0)
@@ -25,4 +25,3 @@ libmain(int argc, char **argv)
 	// exit gracefully
 	exit();
 }
-

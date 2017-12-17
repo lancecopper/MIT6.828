@@ -63,6 +63,8 @@ open(const char *path, int mode)
 	//
 	// (fd_alloc does not allocate a page, it just returns an
 	// unused fd address.  Do you need to allocate a page?)
+	// answer: No, you just need to give a va, and the file
+	// server will map a page to it.
 	//
 	// Return the file descriptor index.
 	// If any step after fd_alloc fails, use fd_close to free the
@@ -141,7 +143,17 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	// remember that write is always allowed to write *fewer*
 	// bytes than requested.
 	// LAB 5: Your code here
-	panic("devfile_write not implemented");
+	int r;
+
+	fsipcbuf.write.req_fileid = fd->fd_file.id;
+	fsipcbuf.write.req_n = n;
+	if(n > PGSIZE - sizeof(int) - sizeof(size_t))
+		panic("ARG n is too large for FUNCTION devfile_write!");
+	memmove(fsipcbuf.write.req_buf, buf, n);
+	if ((r = fsipc(FSREQ_WRITE, NULL)) < 0)
+		return r;
+	assert(r <= n);
+	return r;
 }
 
 static int
@@ -177,4 +189,3 @@ sync(void)
 
 	return fsipc(FSREQ_SYNC, NULL);
 }
-

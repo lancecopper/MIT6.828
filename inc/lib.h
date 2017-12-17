@@ -29,8 +29,11 @@
 void	umain(int argc, char **argv);
 
 // libmain.c or entry.S
-extern const char *binaryname;
+// uncomment 	code below when: implement lab4 ex12 challenge sfork:
+// #define thisenv (&envs[ENVX(sys_getenvid())])
+
 extern const volatile struct Env *thisenv;
+extern const char *binaryname;
 extern const volatile struct Env envs[NENV];
 extern const volatile struct PageInfo pages[];
 
@@ -57,9 +60,12 @@ int	sys_page_alloc(envid_t env, void *pg, int perm);
 int	sys_page_map(envid_t src_env, void *src_pg,
 		     envid_t dst_env, void *dst_pg, int perm);
 int	sys_page_unmap(envid_t env, void *pg);
+int sys_checkpoint(envid_t envid, void *pg);
+int sys_restart(envid_t envid, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 unsigned int sys_time_msec(void);
+
 
 // This must be inlined.  Exercise for reader: why?
 static inline envid_t __attribute__((always_inline))

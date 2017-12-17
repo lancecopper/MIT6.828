@@ -19,7 +19,6 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// The last clause tells the assembler that this can
 	// potentially change the condition codes and arbitrary
 	// memory locations.
-
 	asm volatile("int %1\n"
 		     : "=a" (ret)
 		     : "i" (T_SYSCALL),
@@ -29,6 +28,7 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		       "b" (a3),
 		       "D" (a4),
 		       "S" (a5)
+// cc:condition codes (the bits in the flags register the jnz, je, etc. operators look at.)
 		     : "cc", "memory");
 
 	if(check && ret > 0)
@@ -83,6 +83,18 @@ int
 sys_page_unmap(envid_t envid, void *va)
 {
 	return syscall(SYS_page_unmap, 1, envid, (uint32_t) va, 0, 0, 0);
+}
+
+int
+sys_checkpoint(envid_t envid, void *va)
+{
+	return syscall(SYS_checkpoint, 1, envid, (uint32_t) va, 0, 0, 0);
+}
+
+int
+sys_restart(envid_t envid, void *va)
+{
+	return syscall(SYS_restart, 1, envid, (uint32_t) va, 0, 0, 0);
 }
 
 // sys_exofork is inlined in lib.h

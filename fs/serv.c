@@ -212,9 +212,15 @@ serve_read(envid_t envid, union Fsipc *ipc)
 
 	if (debug)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
-
 	// Lab 5: Your code here:
-	return 0;
+	struct OpenFile *o;
+	int r;
+
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+	if((r = file_read(o->o_file, ret->ret_buf, req->req_n, o->o_fd->fd_offset)) >= 0)
+		o->o_fd->fd_offset += r;
+	return r;
 }
 
 
@@ -229,7 +235,14 @@ serve_write(envid_t envid, struct Fsreq_write *req)
 		cprintf("serve_write %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// LAB 5: Your code here.
-	panic("serve_write not implemented");
+	struct OpenFile *o;
+	int r;
+
+	if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0)
+		return r;
+	if((r = file_write(o->o_file, req->req_buf, req->req_n, o->o_fd->fd_offset)) >= 0)
+		o->o_fd->fd_offset += r;
+	return r;
 }
 
 // Stat ipc->stat.req_fileid.  Return the file's struct Stat to the
@@ -297,7 +310,6 @@ serve(void)
 	uint32_t req, whom;
 	int perm, r;
 	void *pg;
-
 	while (1) {
 		perm = 0;
 		req = ipc_recv((int32_t *) &whom, fsreq, &perm);
@@ -339,6 +351,6 @@ umain(int argc, char **argv)
 
 	serve_init();
 	fs_init();
+	fs_test()；
 	serve();
 }
-

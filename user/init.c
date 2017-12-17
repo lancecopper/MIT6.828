@@ -38,7 +38,7 @@ umain(int argc, char **argv)
 	else
 		cprintf("init: bss seems okay\n");
 
-	// output in one syscall per line to avoid output interleaving 
+	// output in one syscall per line to avoid output interleaving
 	strcat(args, "init: args:");
 	for (i = 0; i < argc; i++) {
 		strcat(args, " '");
@@ -61,7 +61,6 @@ umain(int argc, char **argv)
 		cprintf("init: starting sh\n");
 		r = spawnl("/sh", "sh", (char*)0);
 		if (r < 0) {
-			cprintf("init: spawn sh: %e\n", r);
 			continue;
 		}
 		wait(r);
