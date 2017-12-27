@@ -51,15 +51,15 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 	// LAB 4: Your code here.
 	int ret;
 	while(true){
-	if(!pg)
-		ret = sys_ipc_try_send(to_env, val, (void *)UTOP, perm);
-	else
-		ret = sys_ipc_try_send(to_env, val, pg, perm);
-	if(ret < 0 && ret != -E_IPC_NOT_RECV)
-		panic("sys_ipc_try_send: %e", ret);
-	if(!ret)
-		break;
-	sys_yield();
+		if(!pg)
+			ret = sys_ipc_try_send(to_env, val, (void *)UTOP, perm);
+		else
+			ret = sys_ipc_try_send(to_env, val, pg, perm);
+		if(ret < 0 && ret != -E_IPC_NOT_RECV)
+			panic("sys_ipc_try_send: %e", ret);
+		if(!ret)
+			break;
+		sys_yield();
 	}
 }
 

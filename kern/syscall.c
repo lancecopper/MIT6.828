@@ -13,6 +13,8 @@
 #include <kern/sched.h>
 #include <kern/time.h>
 
+#include <kern/e1000.h>
+
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
 // Destroys the environment on memory errors.
@@ -392,7 +394,8 @@ sys_ipc_recv(void *dstva)
 	if((uintptr_t)dstva < UTOP && PGOFF(dstva))
 		return -E_INVAL;
 	curenv->env_ipc_recving = true;
-	curenv->env_ipc_dstva = dstva;
+	if((uintptr_t)dstva < UTOP)
+		curenv->env_ipc_dstva = dstva;
 	curenv->env_status = ENV_NOT_RUNNABLE;
 	sched_yield();
 }
@@ -402,7 +405,13 @@ static int
 sys_time_msec(void)
 {
 	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+	return time_msec();
+}
+
+static int
+sys_tx_packet(const void *src, size_t n)
+{
+  return tx_packet(src, n);
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -448,6 +457,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_ipc_try_send((envid_t)a1, (uint32_t)a2, (void *)a3, (unsigned)a4);
 		case SYS_env_set_trapframe:
 			return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
+		case SYS_time_msec:
+			return sys_time_msec();
 		default:
 			return -E_INVAL;
 	}

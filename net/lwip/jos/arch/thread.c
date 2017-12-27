@@ -99,28 +99,28 @@ thread_entry(void) {
 }
 
 int
-thread_create(thread_id_t *tid, const char *name, 
-		void (*entry)(uint32_t), uint32_t arg) {
+thread_create(thread_id_t *tid, const char *name,
+              void (*entry)(uint32_t), uint32_t arg) {
     struct thread_context *tc = malloc(sizeof(struct thread_context));
     if (!tc)
-	return -E_NO_MEM;
+	     return -E_NO_MEM;
 
     memset(tc, 0, sizeof(struct thread_context));
-    
+
     thread_set_name(tc, name);
     tc->tc_tid = alloc_tid();
 
     tc->tc_stack_bottom = malloc(stack_size);
     if (!tc->tc_stack_bottom) {
-	free(tc);
-	return -E_NO_MEM;
+    	free(tc);
+    	return -E_NO_MEM;
     }
 
     void *stacktop = tc->tc_stack_bottom + stack_size;
     // Terminate stack unwinding
     stacktop = stacktop - 4;
     memset(stacktop, 0, 4);
-    
+
     memset(&tc->tc_jb, 0, sizeof(tc->tc_jb));
     tc->tc_jb.jb_esp = (uint32_t)stacktop;
     tc->tc_jb.jb_eip = (uint32_t)&thread_entry;
@@ -130,7 +130,7 @@ thread_create(thread_id_t *tid, const char *name,
     threadq_push(&thread_queue, tc);
 
     if (tid)
-	*tid = tc->tc_tid;
+	   *tid = tc->tc_tid;
     return 0;
 }
 

@@ -223,6 +223,8 @@ trap_dispatch(struct Trapframe *tf)
 		// LAB 4: Your code here.
 		case IRQ_OFFSET + IRQ_TIMER:
 			lapic_eoi();
+		// lab 6_ex1: Your code here 
+			time_tick();
 			sched_yield();
 			break;
 		// Handle keyboard and serial interrupts.
