@@ -136,7 +136,7 @@ sys_time_msec(void)
 }
 
 int
-sys_tx_packet(const void *src, size_t n)
+sys_try_tx_packet(const void *src, size_t n)
 {
-	return syscall(SYS_ipc_recv, 1, (uint32_t)src, (uint32_t)n, 0, 0, 0);
+	return syscall(SYS_try_tx_packet, 1, (uint32_t)src, (uint32_t)n, 0, 0, 0);
 }

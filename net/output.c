@@ -12,12 +12,19 @@ output(envid_t ns_envid)
 	// 	- read a packet from the network server
 	//	- send the packet to the device driver
 	uint32_t whom;
-	int32_t reqno;
-	static envid_t nsenv;
-	if (nsenv == 0)
-		nsenv = ipc_find_env(ENV_TYPE_NS);
-	do{
-		reqno = ipc_recv((int32_t *)&whom, &nsipcbuf, 0);
-	}while(whom!= nsenv || reqno != NSREQ_OUTPUT);
-	sys_tx_packet(nsipcbuf.pkt.jp_data, nsipcbuf.pkt.jp_len);
+	int ret;
+	while(true)
+	{
+		if(ipc_recv((int32_t *)&whom, &nsipcbuf, 0) != NSREQ_OUTPUT || whom != ns_envid)
+			continue;
+		while(true){
+			ret = sys_try_tx_packet(nsipcbuf.pkt.jp_data, nsipcbuf.pkt.jp_len);
+			if(ret == -1)
+				sys_yield();
+			else if(ret < 0)
+				panic("sys_try_tx_packet: %e", ret);
+			else
+				break;
+		}
+	}
 }

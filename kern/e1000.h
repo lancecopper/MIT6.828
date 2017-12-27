@@ -49,7 +49,7 @@ struct e1000_packet_buf
 };
 
 int pci_e1000_init(struct pci_func *f);
-int tx_packet(const void *src, size_t n);
+int try_tx_packet(const void *src, size_t n);
 
 extern struct tx_desc tx_descs[TX_DESC_NUM];
 extern struct e1000_packet_buf e1000_packet_bufs[TX_DESC_NUM];

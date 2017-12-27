@@ -10,7 +10,6 @@ struct e1000_packet_buf e1000_packet_bufs[TX_DESC_NUM];
 char test_packet[] = "Hello, world!";
 
 int try_tx_packet(const void *src, size_t n);
-int tx_packet(const void *src, size_t n);
 int tx_descs_init(void);
 
 int pci_e1000_init(struct pci_func *f){
@@ -25,7 +24,7 @@ int pci_e1000_init(struct pci_func *f){
     (E1000_TCTL_CT & (0x10 << 4)) | (E1000_TCTL_COLD & (0x40 << 12));
   e1000_mem_regs[E1000_TIPG/4] = 10 | (4 << 10) | (6 << 20);
   tx_descs_init();
-  tx_packet(test_packet, sizeof(test_packet));
+  //try_tx_packet(test_packet, sizeof(test_packet));
   return 0;
 }
 
@@ -45,16 +44,6 @@ int try_tx_packet(const void *src, size_t n)
   memcpy(&e1000_packet_bufs[tail], src, n);
   e1000_mem_regs[E1000_TDT/4] = (tail + 1) % TX_DESC_NUM;
   return 0;
-}
-
-int tx_packet(const void *src, size_t n)
-{
-	int ret = -1;
-	if((uintptr_t)src >= UTOP)
-		return -E_INVAL;
-	while (ret < 0)
-		ret = try_tx_packet(src, n);
-  return ret;
 }
 
 int tx_descs_init(void){

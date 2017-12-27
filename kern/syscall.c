@@ -409,9 +409,12 @@ sys_time_msec(void)
 }
 
 static int
-sys_tx_packet(const void *src, size_t n)
+sys_try_tx_packet(const void *src, size_t n)
 {
-  return tx_packet(src, n);
+	int ret = -1;
+	if((uintptr_t)src >= UTOP)
+		return -E_INVAL;
+	return try_tx_packet(src, n);
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -459,6 +462,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
 		case SYS_time_msec:
 			return sys_time_msec();
+		case SYS_try_tx_packet:
+			return sys_try_tx_packet((const void *)a1, (size_t)a2);
 		default:
 			return -E_INVAL;
 	}
