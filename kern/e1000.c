@@ -14,6 +14,7 @@ struct e1000_packet_buf e1000_rx_packet_bufs[RX_DESC_NUM];
 
 int try_tx_packet(const void *src, size_t n);
 int tx_descs_init(void);
+int try_rx_packet(void *dst, int *n);
 int rx_descs_init(void);
 
 int pci_e1000_init(struct pci_func *f){
@@ -57,11 +58,25 @@ int try_tx_packet(const void *src, size_t n)
   if(!(desc->status & E1000_TXD_STAT_DD)){
     return -1;
   }
-  desc->status &= ~E1000_TXD_STAT_DD;
+  desc->status = ~E1000_TXD_STAT_DD;
   desc->length = n;
   desc->cmd |= E1000_TXD_CMD_EOP >> 24;
   memcpy(&e1000_tx_packet_bufs[tail], src, n);
   e1000_mem_regs[E1000_TDT/4] = (tail + 1) % TX_DESC_NUM;
+  return 0;
+}
+
+int try_rx_packet(void *dst, int *n){
+  struct rx_desc *desc;
+  int tail = (e1000_mem_regs[E1000_RDT/4] + 1) % RX_DESC_NUM;
+  desc = &rx_descs[tail];
+  if(!(desc->status & E1000_RXD_STAT_DD)){
+    return -1;
+  }
+  *n = desc->length;
+  memcpy(dst, &e1000_rx_packet_bufs[tail], desc->length);
+  desc->status = 0;
+  e1000_mem_regs[E1000_RDT/4] = tail;
   return 0;
 }
 
@@ -76,6 +91,7 @@ int tx_descs_init(void){
 
 int rx_descs_init(void){
   for(int i = 0; i < RX_DESC_NUM; i++){
+    memset(&rx_descs[i], 0, sizeof(struct rx_desc));
     rx_descs[i].addr = PADDR(&e1000_rx_packet_bufs[i]);
   }
   return 0;

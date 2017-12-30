@@ -417,6 +417,15 @@ sys_try_tx_packet(const void *src, size_t n)
 	return try_tx_packet(src, n);
 }
 
+static int
+sys_try_rx_packet(void *dst, int *n)
+{
+	int ret = -1;
+	if((uintptr_t)dst >= UTOP)
+		return -E_INVAL;
+	return try_rx_packet(dst, n);
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -464,6 +473,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 			return sys_time_msec();
 		case SYS_try_tx_packet:
 			return sys_try_tx_packet((const void *)a1, (size_t)a2);
+		case SYS_try_rx_packet:
+			return sys_try_rx_packet((void *)a1, (int *)a2);
 		default:
 			return -E_INVAL;
 	}

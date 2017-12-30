@@ -94,7 +94,6 @@ umain(int argc, char **argv)
 	while (1) {
 		envid_t whom;
 		int perm;
-
 		int32_t req = ipc_recv((int32_t *)&whom, pkt, &perm);
 		if (req < 0)
 			panic("ipc_recv: %e", req);
@@ -102,7 +101,6 @@ umain(int argc, char **argv)
 			panic("IPC from unexpected environment %08x", whom);
 		if (req != NSREQ_INPUT)
 			panic("Unexpected IPC %d", req);
-
 		hexdump("input: ", pkt->jp_data, pkt->jp_len);
 		cprintf("\n");
 
