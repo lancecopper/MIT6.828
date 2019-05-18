@@ -1,6 +1,6 @@
 # MIT6.828
 
-## 参考资料
+## 课程资料
 
 * [Fall 2016](https://pdos.csail.mit.edu/6.828/2016/index.html)
 
